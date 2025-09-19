@@ -2033,5 +2033,145 @@ if page == "🤖 AI Analysis":
                 except Exception as e:
                     st.error(f"An unexpected error occurred: {str(e)}")
 
+#######################################################################################################################################################################################################
+#####################################################################################################################################################################################################
+
+
+# PBN FAQs Page
+elif page == "📚 PBN FAQs":
+    st.markdown('<div class="main-header">📚 PBN FAQs</div>', unsafe_allow_html=True)
+    st.markdown("Explore frequently asked questions about the Property Bidding Network (PBN) to understand its features, integration, and benefits.")
+
+    # FAQ Data
+    faqs = [
+        {
+            "question": "What is PBN in one line?",
+            "answer": "An AI/analytics overlay that improves discovery, price realization, participation, and integrity on top of BAANKNET—without handling KYC or payments."
+        },
+        {
+            "question": "What outcomes does PBN target?",
+            "answer": "Higher bidder participation, better hammer-to-reserve %, faster time-to-sale, fewer re-auctions, and stronger transparency/auditability."
+        },
+        {
+            "question": "Which PBN modules ship first?",
+            "answer": "Listing Quality Score, Reserve-Price & Timing Optimizer, Buyer Copilot, Fraud Sentinel, and the Recovery/Integrity Cockpit."
+        },
+        {
+            "question": "What data does PBN need (read-only)?",
+            "answer": "Listing fields (asset, location, reserve, schedule), artefact inventory (docs/photos), and outcomes (sold/unsold, hammer). Optional: pseudonymous engagement signals."
+        },
+        {
+            "question": "Does PBN touch KYC or payments?",
+            "answer": "No. Those remain on BAANKNET/bank rails. PBN never processes KYC or payment data."
+        },
+        {
+            "question": "How does PBN integrate technically?",
+            "answer": "Read-only APIs or scheduled extracts (CSV/JSON). Minimal schema agreed via MoU; secure transfer; encryption in transit/at rest."
+        },
+        {
+            "question": "Can we start without new APIs?",
+            "answer": "Yes—begin with scheduled extracts; move to APIs once value is proven."
+        },
+        {
+            "question": "What is the Listing Quality Score?",
+            "answer": "A composite score of artefact completeness, OCR readability, address/geo consistency, photo sufficiency, and reserve sanity. Low scores trigger fix-lists and user warnings."
+        },
+        {
+            "question": "How does the Reserve-Price & Timing Optimizer work?",
+            "answer": "Uses comps, circle-rate context, outcomes history, micro-market demand, and seasonality to propose a reserve band + auction window with sensitivity analysis."
+        },
+        {
+            "question": "Who approves reserves?",
+            "answer": "Always the bank. PBN recommendations are explainable and advisory."
+        },
+        {
+            "question": "What does the Fraud Sentinel monitor?",
+            "answer": "Bid-rotation/rings, synchronized bursts from correlated identities, abnormal increments, repeated winner defaults, frequent unexplained reschedules, and outcome posting anomalies."
+        },
+        {
+            "question": "What happens when Fraud Sentinel fires?",
+            "answer": "PBN creates an explainable case bundle (evidence, sequences, timestamps, graphs) and escalates to bank/DFS; no auto-bans."
+        },
+        {
+            "question": "What does the Buyer Copilot show?",
+            "answer": "Plain-language notice summaries, due-diligence checklists, local comps/heatmaps, rent-yield hints, and a bid-readiness simulator (opt-in/consent)."
+        },
+        {
+            "question": "How does PBN protect privacy?",
+            "answer": "Data minimization (non-PII), pseudonymous analytics only, consent prompts for overlays, strict RBAC, audit trails, encryption in transit/at rest."
+        },
+        {
+            "question": "What KPIs are tracked by default?",
+            "answer": "Participation density, first-time bidder share, hammer-to-reserve %, days-on-platform, re-auction rates, grievance density, integrity alert rates."
+        },
+        {
+            "question": "How are false positives handled?",
+            "answer": "Each alert has severity + confidence; HIGH actions require a rules hit and model score threshold. MEDIUM flags sampled for manual QA to tune thresholds."
+        },
+        {
+            "question": "Is PBN deployment cloud or on-prem?",
+            "answer": "Both options. Default: India-region cloud with VPC isolation; on-prem supported if mandated by a bank."
+        },
+        {
+            "question": "How are models governed and explained?",
+            "answer": "Versioned models/features, drift/bias monitoring, back-testing, release notes, rollback hooks; each recommendation includes why (top features) and evidence."
+        },
+        {
+            "question": "Does PBN change BAANKNET screens?",
+            "answer": "No core changes. Optional in-page overlays or a companion micro-app (consent-based) to explain listings; all transactions stay on BAANKNET."
+        },
+        {
+            "question": "What’s the action framework for red flags?",
+            "answer": "BLOCK/HOLD (high risk), WARN/PRIORITIZE (medium), INFO (low). Each rule has id, trigger, evidence, explanation, and auto-clear policy."
+        },
+        {
+            "question": "What training and handholding are included?",
+            "answer": "Role-based sessions (Branch/RO, CXO/Recovery, BAANKNET ops, DFS), micro-videos, in-app tooltips, and weekly KPI reviews during pilot."
+        },
+        {
+            "question": "What does success look like at pilot exit?",
+            "answer": "Pre-agreed KPI bands hit (e.g., +X% participation, +Y% hammer uplift, −Z% cycle time), integrity alerts within expected ranges, and positive branch feedback on fix-lists."
+        },
+        {
+            "question": "How does PBN scale across banks/cities?",
+            "answer": "Tenant-isolated data, configurable rules, geo/asset templates, and a feature store that generalizes across micro-markets with local calibration."
+        },
+        {
+            "question": "What’s the exit/retention stance?",
+            "answer": "Clear data-retention windows (operational vs anonymized analytics), export tooling for your data, and deprovisioning procedures defined in the MoU."
+        }
+    ]
+
+    # FAQ Sections
+    st.markdown('<div class="sub-header">General Information</div>', unsafe_allow_html=True)
+    for faq in faqs[:5]:
+        with st.expander(faq["question"]):
+            st.markdown(f'<div class="faq-answer">{faq["answer"]}</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="sub-header">Technical Integration</div>', unsafe_allow_html=True)
+    for faq in faqs[5:7]:
+        with st.expander(faq["question"]):
+            st.markdown(f'<div class="faq-answer">{faq["answer"]}</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="sub-header">Core Features</div>', unsafe_allow_html=True)
+    for faq in faqs[7:13]:
+        with st.expander(faq["question"]):
+            st.markdown(f'<div class="faq-answer">{faq["answer"]}</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="sub-header">Privacy and Governance</div>', unsafe_allow_html=True)
+    for faq in faqs[13:19]:
+        with st.expander(faq["question"]):
+            st.markdown(f'<div class="faq-answer">{faq["answer"]}</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="sub-header">Deployment and Support</div>', unsafe_allow_html=True)
+    for faq in faqs[19:]:
+        with st.expander(faq["question"]):
+            st.markdown(f'<div class="faq-answer">{faq["answer"]}</div>', unsafe_allow_html=True)
+
+    # Download FAQs as PDF (placeholder for future implementation)
+    st.markdown("---")
+    st.markdown("**Download FAQs**")
+    st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
