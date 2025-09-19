@@ -929,6 +929,533 @@ elif page == "📈 KPI Analytics" and df is not None:
 
 
 #####################################################################################################################################################################
+####################################################################################################################################################################
+
+# KPI Analytics Page 2
+elif page == "📈 KPI Analytics 2" and df is not None:
+    st.markdown('<div class="main-header">KPI Analytics Dashboard</div>', unsafe_allow_html=True)
+
+    # Fancy, modern CSS with a bluish color scheme and glassmorphism
+    st.markdown("""
+        <style>
+            .metric-tile {
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+                padding: 1.75rem;
+                border-radius: 16px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+                position: relative;
+                transition: transform 0.4s ease, box-shadow 0.4s ease;
+                border: 1px solid rgba(59, 130, 246, 0.2); /* Blue border */
+                margin-bottom: 1.5rem;
+            }
+            .metric-tile:hover {
+                transform: translateY(-8px);
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+            }
+            .tooltip {
+                visibility: hidden;
+                opacity: 0;
+                transition: opacity 0.4s ease, visibility 0.4s ease;
+                position: absolute;
+                z-index: 10;
+                background: rgba(29, 78, 216, 0.95); /* Deep blue glassmorphism */
+                color: #ffffff;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 0.9rem;
+                max-width: 340px;
+                bottom: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            .metric-tile:hover .tooltip {
+                visibility: visible;
+                opacity: 1;
+            }
+            .main-header {
+                font-size: 2.5rem;
+                font-weight: 800;
+                text-align: center;
+                margin: 2rem 0 3rem 0;
+                background: linear-gradient(90deg, #1e40af, #60a5fa); /* Blue gradient */
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .section-header {
+                font-size: 1.9rem;
+                font-weight: 700;
+                margin: 2.5rem 0 1.5rem 0;
+                color: #111827; /* Dark for contrast */
+                background: linear-gradient(to right, #3b82f6, #93c5fd); /* Light blue gradient */
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                padding-left: 0.5rem;
+            }
+            .metric-tile h3 {
+                font-size: 1.3rem;
+                font-weight: 700;
+                color: #111827;
+                margin-bottom: 0.75rem;
+            }
+            .metric-tile p {
+                font-size: 1.6rem;
+                font-weight: 600;
+                color: #2563eb; /* Vibrant blue */
+            }
+            /* Smooth typography */
+            * {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Hardcoded values for all KPIs (unchanged)
+    bank_loan_recovery_rate = 82.5
+    bank_portfolio_health_index = 91.2
+    bank_default_prediction_accuracy = 88.7
+    bank_customer_satisfaction_score = 4.2
+    bank_operational_efficiency = 76.4
+    bank_risk_exposure_ratio = 12.3
+    bank_compliance_audit_score = 95.8
+    bank_asset_liquidation_speed = "Min: 30, Median: 45, P95: 60"
+
+    liq_asset_realization_rate = 79.8
+    liq_liquidation_tat_days = "Min: 50, Median: 70, P95: 110"
+    liq_cost_to_liquidate = 5.2
+    liq_successful_closure_rate = 85.6
+    liq_stakeholder_satisfaction = 3.9
+    liq_dispute_resolution_rate = 92.1
+    liq_recovery_vs_valuation = 87.4
+    liq_re_liquidation_rate = 9.5
+
+    group_collateral_coverage_ratio = 1.45
+    group_aggregate_recovery = "₹500M per quarter"
+    group_cross_collateral_efficiency = 84.3
+    group_risk_pooling_effectiveness = 78.9
+    group_liquidator_performance_variance = 6.7
+    group_collateral_valuation_accuracy = 90.5
+    group_multi_entity_coordination_score = 88.2
+    group_repossession_success_rate = 76.4
+
+    govt_public_auction_success_rate = 81.2
+    govt_transparency_index = 94.5
+    govt_fund_allocation_efficiency = 89.7
+    govt_regulatory_compliance_rate = 97.3
+    govt_dispute_incidence = 3.4
+    govt_asset_management_tat = "Min: 60, Median: 90, P95: 150"
+    govt_stakeholder_engagement_score = 4.1
+    govt_recovery_impact = 72.8
+
+    reg_violation_detection_rate = 93.6
+    reg_enforcement_action_timeliness = "Min: 10, Median: 20, P95: 45"
+    reg_audit_completeness = 98.9
+    reg_policy_adherence_rate = 96.4
+    reg_risk_mitigation_effectiveness = 85.2
+    reg_reporting_accuracy = 97.1
+    reg_stakeholder_compliance_training = 88.5
+    reg_penalty_recovery_rate = 79.3
+
+    # Display Banks/Organizations KPIs
+    st.markdown('<div class="section-header">Banks & Organizations</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Loan Recovery Rate</h3>
+                <p>{bank_loan_recovery_rate}%</p>
+                <div class="tooltip">Percentage of outstanding loans recovered through auctions and processes. Definition: recovered_amount ÷ outstanding_amount.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Portfolio Health Index</h3>
+                <p>{bank_portfolio_health_index}%</p>
+                <div class="tooltip">Overall health score of loan portfolio based on defaults and recoveries.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Default Prediction Accuracy</h3>
+                <p>{bank_default_prediction_accuracy}%</p>
+                <div class="tooltip">Accuracy of models predicting loan defaults.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Customer Satisfaction Score</h3>
+                <p>{bank_customer_satisfaction_score}/5</p>
+                <div class="tooltip">Average satisfaction score from borrowers and bidders.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Operational Efficiency</h3>
+                <p>{bank_operational_efficiency}%</p>
+                <div class="tooltip">Efficiency in handling auction operations.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col6:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Risk Exposure Ratio</h3>
+                <p>{bank_risk_exposure_ratio}%</p>
+                <div class="tooltip">Ratio of exposed risk in the portfolio.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col7, col8, _ = st.columns(3)
+    with col7:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Compliance Audit Score</h3>
+                <p>{bank_compliance_audit_score}%</p>
+                <div class="tooltip">Score from internal and external audits.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col8:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Asset Liquidation Speed (Days)</h3>
+                <p>{bank_asset_liquidation_speed}</p>
+                <div class="tooltip">Time taken to liquidate assets.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Display Liquidators KPIs
+    st.markdown('<div class="section-header">Liquidators</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Asset Realization Rate</h3>
+                <p>{liq_asset_realization_rate}%</p>
+                <div class="tooltip">Percentage of asset value realized through liquidation.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Liquidation TAT (Days)</h3>
+                <p>{liq_liquidation_tat_days}</p>
+                <div class="tooltip">Turnaround time for liquidation processes.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Cost to Liquidate (%)</h3>
+                <p>{liq_cost_to_liquidate}%</p>
+                <div class="tooltip">Costs as a percentage of realized value.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Successful Closure Rate</h3>
+                <p>{liq_successful_closure_rate}%</p>
+                <div class="tooltip">Percentage of cases closed successfully.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Stakeholder Satisfaction</h3>
+                <p>{liq_stakeholder_satisfaction}/5</p>
+                <div class="tooltip">Satisfaction score from involved parties.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col6:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Dispute Resolution Rate</h3>
+                <p>{liq_dispute_resolution_rate}%</p>
+                <div class="tooltip">Percentage of disputes resolved efficiently.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col7, col8, _ = st.columns(3)
+    with col7:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Recovery vs Valuation</h3>
+                <p>{liq_recovery_vs_valuation}%</p>
+                <div class="tooltip">Realized recovery against initial valuation.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col8:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Re-Liquidation Rate</h3>
+                <p>{liq_re_liquidation_rate}%</p>
+                <div class="tooltip">Percentage of assets requiring re-liquidation.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Display Group Liquidators & Collaterals KPIs
+    st.markdown('<div class="section-header">Group Liquidators & Collaterals</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Collateral Coverage Ratio</h3>
+                <p>{group_collateral_coverage_ratio}</p>
+                <div class="tooltip">Ratio of collateral value to outstanding debt.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Aggregate Recovery</h3>
+                <p>{group_aggregate_recovery}</p>
+                <div class="tooltip">Total recovery across group entities.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Cross-Collateral Efficiency</h3>
+                <p>{group_cross_collateral_efficiency}%</p>
+                <div class="tooltip">Efficiency in utilizing cross-collaterals.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Risk Pooling Effectiveness</h3>
+                <p>{group_risk_pooling_effectiveness}%</p>
+                <div class="tooltip">Effectiveness of risk distribution in group.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Liquidator Performance Variance</h3>
+                <p>{group_liquidator_performance_variance}%</p>
+                <div class="tooltip">Variance in performance across group liquidators.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col6:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Collateral Valuation Accuracy</h3>
+                <p>{group_collateral_valuation_accuracy}%</p>
+                <div class="tooltip">Accuracy of group collateral valuations.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col7, col8, _ = st.columns(3)
+    with col7:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Multi-Entity Coordination Score</h3>
+                <p>{group_multi_entity_coordination_score}%</p>
+                <div class="tooltip">Score for coordination among group entities.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col8:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Repossession Success Rate</h3>
+                <p>{group_repossession_success_rate}%</p>
+                <div class="tooltip">Percentage of successful repossessions in group.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Display Govt Agencies KPIs
+    st.markdown('<div class="section-header">Government Agencies</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Public Auction Success Rate</h3>
+                <p>{govt_public_auction_success_rate}%</p>
+                <div class="tooltip">Percentage of public auctions successfully completed.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Transparency Index</h3>
+                <p>{govt_transparency_index}%</p>
+                <div class="tooltip">Index measuring process transparency.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Fund Allocation Efficiency</h3>
+                <p>{govt_fund_allocation_efficiency}%</p>
+                <div class="tooltip">Efficiency in allocating funds for auctions.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Regulatory Compliance Rate</h3>
+                <p>{govt_regulatory_compliance_rate}%</p>
+                <div class="tooltip">Percentage of compliance with regulations.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Dispute Incidence</h3>
+                <p>{govt_dispute_incidence}%</p>
+                <div class="tooltip">Percentage of processes with disputes.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col6:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Asset Management TAT (Days)</h3>
+                <p>{govt_asset_management_tat}</p>
+                <div class="tooltip">Time for asset management.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col7, col8, _ = st.columns(3)
+    with col7:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Stakeholder Engagement Score</h3>
+                <p>{govt_stakeholder_engagement_score}/5</p>
+                <div class="tooltip">Engagement score with stakeholders.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col8:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Recovery Impact</h3>
+                <p>{govt_recovery_impact}%</p>
+                <div class="tooltip">Impact on overall recovery.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Display Regulatory Bodies KPIs
+    st.markdown('<div class="section-header">Regulatory Bodies</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Violation Detection Rate</h3>
+                <p>{reg_violation_detection_rate}%</p>
+                <div class="tooltip">Percentage of violations detected promptly.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Enforcement Action Timeliness (Days)</h3>
+                <p>{reg_enforcement_action_timeliness}</p>
+                <div class="tooltip">Time taken for enforcement actions.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Audit Completeness</h3>
+                <p>{reg_audit_completeness}%</p>
+                <div class="tooltip">Percentage completeness of audits.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Policy Adherence Rate</h3>
+                <p>{reg_policy_adherence_rate}%</p>
+                <div class="tooltip">Percentage adherence to policies.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Risk Mitigation Effectiveness</h3>
+                <p>{reg_risk_mitigation_effectiveness}%</p>
+                <div class="tooltip">Effectiveness in mitigating risks.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col6:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Reporting Accuracy</h3>
+                <p>{reg_reporting_accuracy}%</p>
+                <div class="tooltip">Accuracy of regulatory reports.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col7, col8, _ = st.columns(3)
+    with col7:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Stakeholder Compliance Training</h3>
+                <p>{reg_stakeholder_compliance_training}%</p>
+                <div class="tooltip">Percentage of stakeholders trained on compliance.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col8:
+        st.markdown(f"""
+            <div class="metric-tile">
+                <h3>Penalty Recovery Rate</h3>
+                <p>{reg_penalty_recovery_rate}%</p>
+                <div class="tooltip">Percentage of penalties recovered.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+
+
+
+
+
+
+#####################################################################################################################################################################
 ########################################################################################################################################################################  
 
 # AI Analysis Page
@@ -1505,5 +2032,6 @@ if page == "🤖 AI Analysis":
                        
                 except Exception as e:
                     st.error(f"An unexpected error occurred: {str(e)}")
+
 
 
