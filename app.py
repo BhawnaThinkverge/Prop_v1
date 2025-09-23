@@ -99,7 +99,7 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigate to:",
-    ["🏠 Dashboard", "🔍 Search Analytics", "📊 Basic Analytics","📈 KPI Analytics","📈 KPI Analytics 2","🤖 AI Analysis","📚 PBN FAQs"],
+    ["🏠 Dashboard", "🔍 Search Analytics", "📊 Basic Analytics","📈 KPI Analytics","📈 KPI Analytics 2","🤖 AI Analysis","⚡ Risk Insights", "📚 PBN FAQs"],
     index=0
 )
 
@@ -1458,68 +1458,55 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 #####################################################################################################################################################################
 ########################################################################################################################################################################  
 
-# AI Analysis Page
-
-df, latest_csv = load_auction_data()
+df, latest_csv = load_auction_data()  
 
 LANDING_API_URL = "https://api.va.landing.ai/v1/tools/agentic-document-analysis"
-GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+GROQ_API_KEY = st.screts["GROQ_API_KEY"]
 VA_API_KEY = st.secrets["VA_API_KEY"]
 
 
-
 def clean_units(value):
-    """Remove 'Lacs', 'Crore', 'Rs.' etc. from string values."""
     if isinstance(value, str):
         value = re.sub(r"\b(lacs?|crores?|rs\.?)\b", "", value, flags=re.IGNORECASE)
         value = value.replace(",", "").strip()
     return value
 
+def normalize_keys(obj):
+    if isinstance(obj, dict):
+        return {k.strip().lower().replace(" ", "_"): normalize_keys(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [normalize_keys(i) for i in obj]
+    return obj
+
 
 def display_insights(insights: dict):
-    """Display auction insights in Streamlit directly, customized for Albion vs IBBI."""
     st.success("Insights generated successfully!")
 
-    # Detect auction source 
     source = str(insights.get("source") or insights.get("auction_platform") or "").lower()
-
-    # Albion 
+    
+    st.markdown("### Auction Summary")
+    st.markdown(f"**Corporate Debtor:** {insights.get('corporate_debtor', '')}")
+    st.markdown(f"**Auction Date:** {insights.get('auction_date', '')}")
+    st.markdown(f"**Auction Time:** {insights.get('auction_time', '')}")
+    
     if "albion" in source:
-        st.markdown("### Auction Summary")
-        st.markdown(f"**Corporate Debtor:** {insights.get('corporate_debtor', '')}")
-        st.markdown(f"**Auction Date:** {insights.get('auction_date', '')}")
-
-        # Reserve Price & EMD cleaned
         reserve_price = clean_units(insights.get("reserve_price", ""))
         emd_amount = clean_units(insights.get("emd_amount", ""))
         st.markdown(f"**Reserve Price:** {reserve_price}")
         st.markdown(f"**EMD Amount:** {emd_amount}")
-
-        # Location 
         st.markdown(f"**Location:** {insights.get('location', '')}")
-
-        # Assets section
-        asset_desc = None
         assets = insights.get("assets", [])
         if assets:
             asset_desc = assets[0].get('asset_description', '')
-    
-        if asset_desc:
             st.markdown(f"**Asset Description:** {asset_desc}")
 
-    # IBBI
-    else:
-        st.markdown("### Auction Summary")
-        st.markdown(f"**Corporate Debtor:** {insights.get('corporate_debtor', '')}")
-        st.markdown(f"**Auction Date:** {insights.get('auction_date', '')}")
-        st.markdown(f"**Auction Time:** {insights.get('auction_time', '')}")
+    else:  # IBBI
         st.markdown(f"**Inspection Date:** {insights.get('inspection_date', '')}")
         st.markdown(f"**Inspection Time:** {insights.get('inspection_time', '')}")
         st.markdown(f"**Auction Platform:** {insights.get('auction_platform', '')}")
         st.markdown(f"**Contact Email:** {insights.get('contact_email', '')}")
         st.markdown(f"**Contact Mobile:** {insights.get('contact_mobile', '')}")
 
-        # Assets
         assets = insights.get("assets", [])
         if assets:
             st.markdown("### Assets Information")
@@ -1531,26 +1518,8 @@ def display_insights(insights: dict):
                 st.markdown(f"**Incremental Bid Amount:** {asset.get('incremental_bid_amount', '')}")
                 st.markdown("---")
 
-        # Financial Terms
-        financial = insights.get("financial_terms", {})
-        if financial:
-            st.markdown("### Financial Terms")
-            st.markdown(f"**EMD Amount:** {financial.get('emd', '')}")
-            bid_increments = financial.get("bid_increments", [])
-            if bid_increments:
-                st.markdown("**Bid Increments:**")
-                for inc in bid_increments:
-                    st.markdown(f"- {inc}")
-
-        # Timeline
-        timeline = insights.get("timeline", {})
-        if timeline:
-            st.markdown("### Timeline")
-            st.markdown(f"**Auction Date:** {timeline.get('auction_date', '')}")
-            st.markdown(f"**Inspection Period:** {timeline.get('inspection_period', '')}")
-
-    # Common (both Albion & IBBI) 
-    ranking = insights.get("ranking", insights)
+    # Common ranking
+    ranking = insights.get("ranking", {})
     if ranking:
         st.markdown("### Auction Ranking")
         st.markdown(f"**Legal Compliance Score:** {ranking.get('legal_compliance_score', 0)}")
@@ -1566,20 +1535,28 @@ def display_insights(insights: dict):
             elif isinstance(references, list):
                 for ref in references:
                     st.markdown(f"- {str(ref)}")
-                
-def normalize_keys(obj):
-    if isinstance(obj, dict):
-        new_obj = {}
-        for k, v in obj.items():
-            new_key = k.strip().lower().replace(" ", "_")
-            new_obj[new_key] = normalize_keys(v)
-        return new_obj
-    elif isinstance(obj, list):
-        return [normalize_keys(i) for i in obj]
-    else:
-        return obj
 
-# Extract structured details from PDF using Landing.ai
+
+@st.cache_resource
+def initialize_llm():
+    return ChatGroq(
+        model="deepseek-r1-distill-llama-70b",
+        temperature=0,
+        api_key=GROQ_API_KEY,
+    )
+
+
+RISK_CACHE_PATH = Path("risk_cache.csv")
+RISK_CACHE_TTL_DAYS = 1
+
+def load_risk_cache():
+    if RISK_CACHE_PATH.exists():
+        return pd.read_csv(RISK_CACHE_PATH, dtype=str)
+    return pd.DataFrame(columns=["auction_id", "risk_summary", "last_processed_at", "insights_json"])
+
+def save_risk_cache(df_cache):
+    df_cache.to_csv(RISK_CACHE_PATH, index=False)
+
 def extract_pdf_details(pdf_url: str) -> dict:
     response = requests.get(pdf_url)
     response.raise_for_status()
@@ -1625,8 +1602,6 @@ def extract_pdf_details(pdf_url: str) -> dict:
     markdown = raw_data.get("markdown", "")
     chunks = raw_data.get("chunks", [])
 
-    # st.subheader("Raw Extracted JSON")
-    # st.json(raw_data)
 
     return {
         "structured": raw_data,
@@ -1646,7 +1621,7 @@ def regex_preparser(markdown: str, chunks: list) -> dict:
     if debtor_match:
         parsed["corporate_debtor"] = debtor_match.group(1).strip()
 
-    # General Auction Date Regex (for text outside of tables)
+    # Auction Date Regex 
     auction_date_match = re.search(
         r'(?:Date(?: and Time)? of)?\s*(?:E-?)?Auction[:\-\s]*?(\d{1,2}[./]\d{1,2}[./]\d{4}|\d{1,2}(st|nd|rd|th)?\s+\w+\s*,?\s*\d{4})',
         markdown,
@@ -1664,7 +1639,7 @@ def regex_preparser(markdown: str, chunks: list) -> dict:
         if fallback_date_match:
             parsed["auction_date"] = fallback_date_match.group(1).strip()
 
-    # All other general regex searches for non-table data
+  
     time_match = re.search(
         r'(Auction\s*Time[:\-]?\s*)?((?:from\s*)?\d{1,2}(?::\d{2}|\.\d{2})?\s*(?:AM|PM|A\.M\.|P\.M\.)(?:\s*(?:to|–|-)\s*\d{1,2}(?::\d{2}|\.\d{2})?\s*(?:AM|PM|A\.M\.|P\.M\.))?)',
         markdown,
@@ -1701,7 +1676,7 @@ def regex_preparser(markdown: str, chunks: list) -> dict:
     
     assets = []
     
-    # --- START OF TABLE PARSING LOGIC ---
+ 
     for c in chunks:
         if c.get("chunk_type") == "table":
             try:
@@ -1751,9 +1726,7 @@ def regex_preparser(markdown: str, chunks: list) -> dict:
                                 asset_entry["emd_amount"] = value_with_unit
                             elif "increment" in header or "bid" in header:
                                 asset_entry["incremental_bid_amount"] = value_with_unit
-                            # Avoid adding the date fields to assets
-                            # elif "auction" in header and "time" in header:
-                            #     asset_entry["auction_time"] = value_with_unit
+                            
                             elif "quantity" in header:
                                 asset_entry["quantity"] = value_with_unit
                             elif "location" in header:
@@ -1770,9 +1743,7 @@ def regex_preparser(markdown: str, chunks: list) -> dict:
     if assets:
         parsed["assets"] = assets
 
-    # --- FINAL CHECK: Safeguard against ambiguous dates being passed as auction_date ---
     if parsed.get("auction_date") and parsed.get("auction_date") in parsed.get("eligibility_deadline", ""):
-        # If the auction_date accidentally grabbed the eligibility date, clear it.
         parsed["auction_date"] = None
     
     return parsed
@@ -1781,15 +1752,15 @@ def check_final_risk(insights: dict) -> dict:
     ranking = insights.get("ranking", {})
     ref_summary = ranking.get("reference_summary", [])
 
-    # Start with a list of risks.
+    #  list of risks.
     risks = []
     
-    # 1. Check for statutory compliance risk (notice period).
+    # Check for statutory compliance risk (notice period).
     notice_period_ok = any(re.search(r'Calculated Days: (\d+)', bullet) and int(re.search(r'Calculated Days: (\d+)', bullet).group(1)) >= 21 for bullet in ref_summary)
     if not notice_period_ok:
         risks.append("high_statutory_non_compliance")
 
-    # 2. Check for missing financials and the mitigating factor.
+    # Check for missing financials and the mitigating factor.
     has_missing_financials = any("reserve price" in bullet.lower() and "missing" in bullet.lower() for bullet in ref_summary) or \
                              any("emd amount" in bullet.lower() and "missing" in bullet.lower() for bullet in ref_summary)
     
@@ -1801,20 +1772,20 @@ def check_final_risk(insights: dict) -> dict:
     elif has_missing_financials and has_mitigating_factor_bullet:
         risks.append("average_mitigated_financials")
 
-    # 3. Check for other high-risk conditions.
+    #  Check for other high-risk conditions.
     if any("critical documents" in bullet.lower() and "missing" in bullet.lower() for bullet in ref_summary) or \
        any("litigation" in bullet.lower() and "disclosed" in bullet.lower() for bullet in ref_summary) or \
        any("valuation report date" in bullet.lower() and "older" in bullet.lower() for bullet in ref_summary) or \
        any("non-compliant with ibc regulation 33" in bullet.lower() for bullet in ref_summary):
         risks.append("high_other_factors")
 
-    # 4. Check for other average risk conditions.
+    # Check for other average risk conditions.
     if any("non-standard" in bullet.lower() for bullet in ref_summary) or \
        any("short window" in bullet.lower() for bullet in ref_summary) or \
        any("ambiguous" in bullet.lower() for bullet in ref_summary):
         risks.append("average_other_factors")
 
-    # 5. Determine the final risk level based on the collected risks.
+    # Determine the final risk level based on the collected risks.
     if any(r.startswith("high") for r in risks):
         ranking["legal_compliance_score"] = 2
         ranking["risk_summary"] = "High Risk"
@@ -1829,7 +1800,7 @@ def check_final_risk(insights: dict) -> dict:
     ranking["final_score"] = int((ranking.get("legal_compliance_score", 0) + ranking.get("economical_score", 0) + ranking.get("market_trends_score", 0)) / 3)
 
     return insights
-# Risk scoring via Groq LLM# Risk scoring via Groq LLM
+
 def generate_risk_insights(auction_json: dict, llm) -> dict:
     import json
 
@@ -1867,7 +1838,7 @@ Return a JSON object with the following fields:
 - contact_email
 - contact_mobile
 - assets (list with block_name, description, reserve_price, emd_amount, incremental_bid_amount)
-  * For financial fields (reserve_price, emd_amount, incremental_bid_amount), **ensure units (e.g., 'Lacs') are included** with the numerical value.
+  * For financial fields (reserve_price, emd_amount, incremental_bid_amount), **ensure units (e.g., 'Lacs') are included** with the numerical value. If Unit is not Explicitly mention, does not provide unit then.
   * If a financial field is not explicitly mentioned, return null or leave it blank.
 IMPORTANT INSTRUCTION: Before generating the JSON, carefully check if the source document explicitly mentions a date for the "auction" or "e-auction." If no such date is found, you MUST return null for the `auction_date` field in the final JSON. Do NOT use dates from other fields like "eligibility documents" or "inspection" to fill this field.
 
@@ -1889,6 +1860,7 @@ The ranking object must contain these fields:
 1. **Primary Risk & Evidence:** State the most critical issue found. Explicitly list any non-standard emails from the notice (e.g., 'AVERAGE RISK: The contact emails 'liquidatorkedia@gmail.com' are non-standard.'). Also, **if reserve price or EMD is not explicitly mentioned, state if the notice provides a clear channel (like an email) to obtain this information by quoting the exact line (e.g., 'The detailed Terms & Conditions...shall be provided upon receipt of mail...').**
 2. **Justification of Primary Risk:** Explain the impact (e.g., of using non-institutional domains).
 3. **Statutory Compliance:** Report on legal defects by CITING THE LEGAL STANDARD AND THE FULL PERIOD. EXPLICITLY state the notice date (from the provided JSON), auction date, and the calculated number of days.
+** If the calculated number of days is >= 21 , then notice complies with legal standards of minimum 21 days notice period under the Insolvency and Bankruptcy Code, 2016, otherwise if it is less than 21 days explicitly mention non-compliance. 
 4. **Authorization & Auction Authority:** State the liquidator's name, their appointing authority, the exact legal order, and the auction service provider.
 5. **Document Sufficiency:** Use the exact format: "Critical documents like [list of documents] are present. Minor annexures like [list of minor annexures] are missing."
 6. **Valuation:** Explicitly state the Reserve Price and mention if it aligns with market norms.
@@ -1909,7 +1881,6 @@ Your entire response MUST be a single valid JSON object with the specified struc
     try:
         parsed = json.loads(raw_output)
 
-        # Enforce defaults for ranking if missing from LLM's response
         parsed.setdefault("ranking", {})
         ranking = parsed["ranking"]
         ranking.setdefault("legal_compliance_score", 0)
@@ -1919,13 +1890,10 @@ Your entire response MUST be a single valid JSON object with the specified struc
         ranking.setdefault("risk_summary", "Not available")
         ranking.setdefault("reference_summary", [])
 
-        # Ensure auction_time is handled
+        
         if not pre_parsed.get("auction_time") and "auction_time" not in parsed:
             parsed["auction_time"] = None
         
-        # --- NEW LOGIC: POST-PROCESSING TO ENFORCE STRICT RULES ---
-        # Instead of putting the strict risk logic in the prompt,
-        # we apply the provided 'check_final_risk' function here.
         
         parsed = check_final_risk(parsed)
 
@@ -1933,7 +1901,7 @@ Your entire response MUST be a single valid JSON object with the specified struc
 
     except Exception:
         return {"error": "Invalid JSON", "raw": raw_output}
-    
+
 def generate_auction_insights(corporate_debtor: str, auction_data: dict, llm, include_markdown: bool = False) -> dict:
     """
     Unified function to generate insights for IBBI auctions by extracting details from a PDF.
@@ -1954,8 +1922,7 @@ def generate_auction_insights(corporate_debtor: str, auction_data: dict, llm, in
 
         if emd_submission_date_str and notice_date_str:
             try:
-                # Assuming the format is 'day-month-year' or 'day/month/year'
-                # and converting to a standard format for parsing
+                
                 emd_submission_date = datetime.datetime.strptime(emd_submission_date_str, '%d-%m-%Y').date()
                 notice_date = datetime.datetime.strptime(notice_date_str, '%d/%m/%Y').date()
 
@@ -1990,86 +1957,146 @@ def generate_auction_insights(corporate_debtor: str, auction_data: dict, llm, in
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# 🤖 AI Analysis Page
+
+def process_single_auction_row(auction_row, llm):
+    
+   
+    auction_id = str(auction_row["auction_id"]).strip()
+    result_row = {
+        "auction_id": auction_id,
+        "risk_summary": "Unknown",
+        "last_processed_at": datetime.utcnow().isoformat(),
+        "insights_json": ""
+    }
+    try:
+        auction_id = str(auction_row["auction_id"]).strip()
+        res = generate_auction_insights(auction_row.get("corporate_debtor", ""), auction_row, llm)
+        if res.get("status") == "success":
+            insights = res["insights"]
+            ranking = insights.get("ranking", {})
+            result_row["risk_summary"] = ranking.get("risk_summary", "Unknown")
+            result_row["insights_json"] = json.dumps(insights, default=str)
+        else:
+            result_row["risk_summary"] = "Error"
+            result_row["insights_json"] = json.dumps(res, default=str)
+    except Exception as e:
+        result_row["risk_summary"] = "Error"
+        result_row["insights_json"] = json.dumps({"error": str(e)})
+    return result_row
+
+# AI Anaysis Page
 if page == "🤖 AI Analysis":
     st.markdown('<div class="main-header">🤖 AI Analysis</div>', unsafe_allow_html=True)
-
-    if df is None:
+    
+    if df is None or df.empty:
         st.error("No auction data loaded")
         st.stop()
-
-    # Normalize column names
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.lower()
-        .str.replace(r"[^\w]+", "_", regex=True)
-        .str.strip("_")
-    )
-
-    # Check for required columns
-    required_columns = ['auction_id', 'emd_submission_date', 'source']
-    if not all(col in df.columns for col in required_columns):
-        st.error(f"Required columns not found in the data. Make sure your CSV contains: {', '.join(required_columns)}")
-        st.stop()
     
-    # Convert the EMD submission date column to a datetime object
-    df['emd_submission_date_dt'] = pd.to_datetime(df['emd_submission_date'], format='%d-%m-%Y', errors='coerce')
-
-    # Filter to show only today's or future EMD dates and only 'IBBI' source
-    df_filtered = df[df['source'].str.lower().str.contains('ibbi', na=False)]
-    df_filtered = df_filtered[df_filtered['emd_submission_date_dt'].notna()]
-    today = datetime.today().date()
-    df_filtered = df_filtered[df_filtered['emd_submission_date_dt'].dt.date >= today]
+    df.columns = df.columns.str.strip().str.lower().str.replace(r"[^\w]+", "_", regex=True).str.strip("_")
     
-    # Use the Filtered DataFrame to populate the selectbox
+    # Filter IBBI
+    df_filtered = df[df["source"].str.lower().str.contains("ibbi", na=False)]
+    df_filtered['emd_submission_date_dt'] = pd.to_datetime(df_filtered['emd_submission_date'], format='%d-%m-%Y', errors='coerce')
+    df_filtered = df_filtered[df_filtered['emd_submission_date_dt'].dt.date >= date.today()]
+    
     auction_ids = df_filtered['auction_id'].dropna().unique()
-    selected_id = st.selectbox("Select Auction ID (from CIN/LLPIN)", options=[""] + list(auction_ids))
+    selected_id = st.selectbox("Select Auction ID", options=[""] + list(auction_ids))
     
     if selected_id:
-        # Get the selected row
-        selected_row = df_filtered[df_filtered['auction_id'] == selected_id]
-        if selected_row.empty:
-            st.warning("Selected Auction ID not found in the filtered data.")
-            st.stop()
-
-        auction_data = selected_row.iloc[0].to_dict()
-        corporate_debtor = auction_data.get('bank', '')
+        selected_row = df_filtered[df_filtered['auction_id'] == selected_id].iloc[0]
+        corporate_debtor = selected_row.get('bank', '')
+        auction_notice_url = selected_row.get('notice_url') or selected_row.get('auction_notice_url')
         
-        # Ensure notice_url exists for the selected IBBI auction
-        auction_notice_url = auction_data.get('notice_url') or auction_data.get('auction_notice_url')
         if not auction_notice_url or "url 2_if available" in str(auction_notice_url).lower():
-            st.warning("Selected IBBI row does not have a valid Auction Notice URL.")
+            st.warning("Selected auction has no valid Auction Notice URL.")
             st.stop()
-
-        @st.cache_resource
-        def initialize_llm():
-            return ChatGroq(
-                model="deepseek-r1-distill-llama-70b",
-                temperature=0,
-                api_key=GROQ_API_KEY,
-            )
-
+        
         llm = initialize_llm()
-
-        if st.button("Generate Insights", use_container_width=True):
-            if not llm:
-                st.error("LLM failed to initialize. Check your GROQ_API_KEY secret.")
-                st.stop()
-
+        if st.button("Generate Insights"):
             with st.spinner("Generating insights..."):
-                # Pass the whole row (auction_data)
-                insights_result = generate_auction_insights(corporate_debtor, auction_data, llm)
-
+                insights_result = generate_auction_insights(corporate_debtor, selected_row.to_dict(), llm)
                 if insights_result["status"] == "success":
-                    insight_data = insights_result["insights"]
-                    if isinstance(insight_data, dict):
-                        display_insights(insight_data)
-                    else:
-                        st.markdown(insight_data)
+                    display_insights(insights_result["insights"])
                 else:
                     st.error("Analysis Failed")
-                    st.exception(Exception(insights_result["message"]))
+                    st.exception(Exception(insights_result.get("message", "")))
+
+# Risk Insights Page
+elif page == "⚡ Risk Insights":
+   
+    st.markdown('<div class="main-header">⚡ Risk Insights</div>', unsafe_allow_html=True)
+
+    today = date.today()
+
+    if df is None or df.empty:
+        st.warning("Auction data not available.")
+    else:
+        df.columns = df.columns.str.strip().str.lower().str.replace(r"[^\w]+", "_", regex=True).str.strip("_")
+        df_ibbi = df[df["source"].str.lower().str.contains("ibbi", na=False)].copy()
+        df_ibbi['emd_submission_date_dt'] = pd.to_datetime(
+            df_ibbi['emd_submission_date'], format='%d-%m-%Y', errors='coerce'
+            )
+
+        
+
+        df_ibbi = df_ibbi[df_ibbi['emd_submission_date_dt'].dt.date >= today]
+
+        if df_ibbi.empty:
+            st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
+
+        # Load risk cache
+        df_cache = load_risk_cache()
+
+        # Refresh button
+        if st.button("Refresh Risk Insights"):
+            if df_ibbi.empty:
+                st.warning("No auctions to process with EMD date today or in future.")
+            else:
+                llm = initialize_llm()
+                updated_rows = []
+                progress = st.progress(0)
+                for i, (_, row) in enumerate(df_ibbi.iterrows()):
+                    auction_id = str(row["auction_id"]).strip()
+                    existing = df_cache[df_cache["auction_id"] == auction_id]
+                    if not existing.empty:
+                        last_time = pd.to_datetime(existing.iloc[0]["last_processed_at"], errors='coerce')
+                        if pd.notna(last_time) and (datetime.utcnow() - last_time.to_pydatetime()).days < RISK_CACHE_TTL_DAYS:
+                            continue
+                    processed = process_single_auction_row(row, llm)
+                    df_cache = df_cache[df_cache["auction_id"] != auction_id]
+                    df_cache = pd.concat([df_cache, pd.DataFrame([processed])], ignore_index=True)
+                    save_risk_cache(df_cache)
+                    updated_rows.append(processed)
+                    progress.progress(int((i + 1) / len(df_ibbi) * 100))
+                st.success(f"Processed {len(updated_rows)} auctions and updated cache.")
+
+        # Reload cache after refresh
+        df_cache = load_risk_cache()
+        df_cache["risk_summary_clean"] = df_cache["risk_summary"].fillna("Unknown").str.title()
+        counts = df_cache["risk_summary_clean"].value_counts().to_dict()
+
+        # Display summary buttons
+        c1, c2, c3 = st.columns(3)
+        clicked = None
+        with c1:
+            if st.button(f"High Risk\n{counts.get('High Risk',0)}"):
+                clicked = "High Risk"
+        with c2:
+            if st.button(f"Average Risk\n{counts.get('Average Risk',0)}"):
+                clicked = "Average Risk"
+        with c3:
+            if st.button(f"Low/No Risk\n{counts.get('Low/No Risk',0)}"):
+                clicked = "Low/No Risk"
+
+        # Display table if clicked
+        if clicked:
+            st.markdown(f"### Auctions in: {clicked}")
+            df_sel = df_cache[df_cache["risk_summary_clean"] == clicked].copy()
+            st.dataframe(df_sel[["auction_id", "risk_summary", "last_processed_at"]])
+        else:
+            st.markdown("**Summary counts:**")
+            st.write(counts)
+
 
 #######################################################################################################################################################################################################
 #####################################################################################################################################################################################################
@@ -2210,6 +2237,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
