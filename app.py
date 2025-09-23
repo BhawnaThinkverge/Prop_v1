@@ -1461,7 +1461,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 df, latest_csv = load_auction_data()  
 
 LANDING_API_URL = "https://api.va.landing.ai/v1/tools/agentic-document-analysis"
-GROQ_API_KEY = st.screts["GROQ_API_KEY"]
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 VA_API_KEY = st.secrets["VA_API_KEY"]
 
 
@@ -2237,6 +2237,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
