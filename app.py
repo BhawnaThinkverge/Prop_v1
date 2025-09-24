@@ -1555,9 +1555,17 @@ RISK_CACHE_PATH = Path("risk_cache.csv")
 RISK_CACHE_TTL_DAYS = 1
 
 def load_risk_cache():
-    if RISK_CACHE_PATH.exists():
-        return pd.read_csv(RISK_CACHE_PATH, dtype=str)
-    return pd.DataFrame(columns=["auction_id", "risk_summary", "last_processed_at", "insights_json"])
+    # Check if the file exists and is not empty
+    if RISK_CACHE_PATH.exists() and os.path.getsize(RISK_CACHE_PATH) > 0:
+        try:
+            return pd.read_csv(RISK_CACHE_PATH, dtype=str)
+        except pd.errors.EmptyDataError:
+            # Handle the specific case where the file has only a header
+            print("Warning: CSV file is empty, creating a new DataFrame.")
+            return pd.DataFrame(columns=["auction_id", "risk_summary", "last_processed_at", "insights_json"])
+    else:
+        # If file doesn't exist or is empty, create a new DataFrame
+        return pd.DataFrame(columns=["auction_id", "risk_summary", "last_processed_at", "insights_json"])
 
 def save_risk_cache(df_cache):
     df_cache.to_csv(RISK_CACHE_PATH, index=False)
@@ -2242,6 +2250,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
