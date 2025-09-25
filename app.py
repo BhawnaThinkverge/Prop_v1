@@ -2042,6 +2042,7 @@ if page == "🤖 AI Analysis":
                     st.exception(Exception(insights_result.get("message", "")))
 
 # Risk Insights Page
+# Risk Insights Page
 elif page == "⚡ Risk Insights":
    
     st.markdown('<div class="main-header">⚡ Risk Insights</div>', unsafe_allow_html=True)
@@ -2051,14 +2052,12 @@ elif page == "⚡ Risk Insights":
     if df is None or df.empty:
         st.warning("Auction data not available.")
     else:
+        # Normalize column names
         df.columns = df.columns.str.strip().str.lower().str.replace(r"[^\w]+", "_", regex=True).str.strip("_")
-        df_ibbi = df[df["source"].str.lower().str.contains("ibbi", na=False)].copy()
-        df_ibbi['emd_submission_date_dt'] = pd.to_datetime(
-            df_ibbi['emd_submission_date'], format='%d-%m-%Y', errors='coerce'
-            )
-
         
-
+        # Filter IBBI auctions with future EMD dates
+        df_ibbi = df[df["source"].str.lower().str.contains("ibbi", na=False)].copy()
+        df_ibbi['emd_submission_date_dt'] = pd.to_datetime(df_ibbi['emd_submission_date'], format='%d-%m-%Y', errors='coerce')
         df_ibbi = df_ibbi[df_ibbi['emd_submission_date_dt'].dt.date >= today]
 
         if df_ibbi.empty:
@@ -2075,20 +2074,35 @@ elif page == "⚡ Risk Insights":
                 llm = initialize_llm()
                 updated_rows = []
                 progress = st.progress(0)
+
                 for i, (_, row) in enumerate(df_ibbi.iterrows()):
                     auction_id = str(row["auction_id"]).strip()
+                    
+                    # Skip if cached recently
                     existing = df_cache[df_cache["auction_id"] == auction_id]
                     if not existing.empty:
                         last_time = pd.to_datetime(existing.iloc[0]["last_processed_at"], errors='coerce')
                         if pd.notna(last_time) and (datetime.utcnow() - last_time.to_pydatetime()).days < RISK_CACHE_TTL_DAYS:
                             continue
+                    
+                    # Process auction row
                     processed = process_single_auction_row(row, llm)
+                    
+                    # Update cache
                     df_cache = df_cache[df_cache["auction_id"] != auction_id]
                     df_cache = pd.concat([df_cache, pd.DataFrame([processed])], ignore_index=True)
                     save_risk_cache(df_cache)
+                    
                     updated_rows.append(processed)
                     progress.progress(int((i + 1) / len(df_ibbi) * 100))
+                
                 st.success(f"Processed {len(updated_rows)} auctions and updated cache.")
+
+                # Show detailed results of processed auctions
+                if updated_rows:
+                    results_df = pd.DataFrame(updated_rows)
+                    st.subheader("Detailed Results of Processed Auctions")
+                    st.dataframe(results_df[["auction_id", "risk_summary", "last_processed_at"]])
 
         # Reload cache after refresh
         df_cache = load_risk_cache()
@@ -2108,14 +2122,21 @@ elif page == "⚡ Risk Insights":
             if st.button(f"Low/No Risk\n{counts.get('Low/No Risk',0)}"):
                 clicked = "Low/No Risk"
 
-        # Display table if clicked
+        # Display auctions for clicked category
         if clicked:
             st.markdown(f"### Auctions in: {clicked}")
             df_sel = df_cache[df_cache["risk_summary_clean"] == clicked].copy()
             st.dataframe(df_sel[["auction_id", "risk_summary", "last_processed_at"]])
         else:
+            # Show summary counts
             st.markdown("**Summary counts:**")
             st.write(counts)
+            
+            # Always show detailed cached auctions below counts
+            if not df_cache.empty:
+                st.subheader("Detailed Results of All Cached Auctions")
+                st.dataframe(df_cache[["auction_id", "risk_summary", "last_processed_at"]])
+
 
 
 #######################################################################################################################################################################################################
@@ -2257,6 +2278,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
