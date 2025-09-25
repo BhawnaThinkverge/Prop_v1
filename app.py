@@ -1972,30 +1972,37 @@ def generate_auction_insights(corporate_debtor: str, auction_data: dict, llm, in
 
 
 def process_single_auction_row(auction_row, llm):
-    
-   
-    auction_id = str(auction_row["auction_id"]).strip()
+    auction_id = str(auction_row.get("auction_id", "UNKNOWN")).strip()
     result_row = {
         "auction_id": auction_id,
         "risk_summary": "Unknown",
         "last_processed_at": datetime.utcnow().isoformat(),
         "insights_json": ""
     }
+
     try:
-        auction_id = str(auction_row["auction_id"]).strip()
-        res = generate_auction_insights(auction_row.get("corporate_debtor", ""), auction_row, llm)
+        res = generate_auction_insights(
+            auction_row.get("corporate_debtor", ""),
+            auction_row,
+            llm
+        )
         if res.get("status") == "success":
             insights = res["insights"]
             ranking = insights.get("ranking", {})
             result_row["risk_summary"] = ranking.get("risk_summary", "Unknown")
             result_row["insights_json"] = json.dumps(insights, default=str)
+            print(f"✅ Processed {auction_id} → {result_row['risk_summary']}")
         else:
             result_row["risk_summary"] = "Error"
             result_row["insights_json"] = json.dumps(res, default=str)
+            print(f"⚠️ Error result for {auction_id}: {res}")
     except Exception as e:
         result_row["risk_summary"] = "Error"
-        result_row["insights_json"] = json.dumps({"error": str(e)})
+        result_row["insights_json"] = json.dumps({"error": str(e)}, default=str)
+        print(f"❌ Exception for {auction_id}: {e}")
+
     return result_row
+
 
 # AI Anaysis Page
 if page == "🤖 AI Analysis":
@@ -2250,6 +2257,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
