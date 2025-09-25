@@ -2051,7 +2051,10 @@ elif page == "⚡ Risk Insights":
     if df is None or df.empty:
         st.warning("Auction data not available.")
     else:
+        # 🧹 Clean column names
         df.columns = df.columns.str.strip().str.lower().str.replace(r"[^\w]+", "_", regex=True).str.strip("_")
+
+        # 📌 Filter only IBBI auctions with EMD date today or in future
         df_ibbi = df[df["source"].str.lower().str.contains("ibbi", na=False)].copy()
         df_ibbi['emd_submission_date_dt'] = pd.to_datetime(
             df_ibbi['emd_submission_date'], format='%d-%m-%Y', errors='coerce'
@@ -2061,10 +2064,10 @@ elif page == "⚡ Risk Insights":
         if df_ibbi.empty:
             st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
 
-        # Load risk cache
+        # 🔄 Load risk cache
         df_cache = load_risk_cache()
 
-        # Ensure all auctions have a row in cache
+        # ✅ Ensure all auctions appear in cache (at least as 'Not Processed')
         for _, row in df_ibbi.iterrows():
             auction_id = str(row["auction_id"]).strip()
             if auction_id not in df_cache["auction_id"].values:
@@ -2077,7 +2080,7 @@ elif page == "⚡ Risk Insights":
 
         save_risk_cache(df_cache)
 
-        # Refresh button
+        # 🔄 Refresh button
         if st.button("Refresh Risk Insights"):
             if df_ibbi.empty:
                 st.warning("No auctions to process with EMD date today or in future.")
@@ -2085,31 +2088,40 @@ elif page == "⚡ Risk Insights":
                 llm = initialize_llm()
                 updated_rows = []
                 progress = st.progress(0)
+
                 for i, (_, row) in enumerate(df_ibbi.iterrows()):
                     auction_id = str(row["auction_id"]).strip()
-
-                    # Skip if already processed recently
                     existing = df_cache[df_cache["auction_id"] == auction_id]
-                    last_time = pd.to_datetime(existing.iloc[0]["last_processed_at"], errors='coerce') if not existing.empty else None
-                    if pd.notna(last_time) and (datetime.utcnow() - last_time.to_pydatetime()).days < RISK_CACHE_TTL_DAYS:
-                        continue
 
+                    # ⚡ Check cache status
+                    status = existing.iloc[0]["risk_summary"] if not existing.empty else "Not Processed"
+                    last_time = pd.to_datetime(existing.iloc[0]["last_processed_at"], errors='coerce') if not existing.empty else None
+
+                    # ✅ Only skip if already successfully processed within TTL
+                    if status not in ["Error", "Not Processed"]:
+                        if pd.notna(last_time) and (datetime.utcnow() - last_time.to_pydatetime()).days < RISK_CACHE_TTL_DAYS:
+                            continue
+
+                    # 🚀 Process auction row
                     processed = process_single_auction_row(row, llm)
-                    df_cache = df_cache[df_cache["auction_id"] != auction_id]
+                    df_cache = df_cache[df_cache["auction_id"] != auction_id]  # remove old entry
                     df_cache = pd.concat([df_cache, pd.DataFrame([processed])], ignore_index=True)
                     save_risk_cache(df_cache)
+
                     updated_rows.append(processed)
                     progress.progress(int((i + 1) / len(df_ibbi) * 100))
 
                 st.success(f"Processed {len(updated_rows)} auctions and updated cache.")
 
-        # Reload cache after refresh
+        # 📊 Reload cache after refresh
         df_cache = load_risk_cache()
         df_cache["risk_summary_clean"] = df_cache["risk_summary"].fillna("Unknown").str.title()
+
+        # 🧮 Summary counts
         counts = df_cache["risk_summary_clean"].value_counts().to_dict()
 
-        # Display summary buttons
-        c1, c2, c3, c4 = st.columns(4)
+        # 🔘 Display summary buttons
+        c1, c2, c3, c4, c5 = st.columns(5)
         clicked = None
         with c1:
             if st.button(f"High Risk\n{counts.get('High Risk',0)}"):
@@ -2121,10 +2133,13 @@ elif page == "⚡ Risk Insights":
             if st.button(f"Low/No Risk\n{counts.get('Low/No Risk',0)}"):
                 clicked = "Low/No Risk"
         with c4:
+            if st.button(f"Error\n{counts.get('Error',0)}"):
+                clicked = "Error"
+        with c5:
             if st.button(f"Not Processed\n{counts.get('Not Processed',0)}"):
                 clicked = "Not Processed"
 
-        # Display table if clicked
+        # 📋 Display table if clicked
         if clicked:
             st.markdown(f"### Auctions in: {clicked}")
             df_sel = df_cache[df_cache["risk_summary_clean"] == clicked].copy()
@@ -2274,6 +2289,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
