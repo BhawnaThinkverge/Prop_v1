@@ -2067,19 +2067,16 @@ elif page == "⚡ Risk Insights":
         # 🔄 Load risk cache
         df_cache = load_risk_cache()
 
-        # ✅ Ensure all auctions appear in cache (at least as 'Not Processed')
-        for _, row in df_ibbi.iterrows():
-            auction_id = str(row["auction_id"]).strip()
-            if auction_id not in df_cache["auction_id"].values:
-                df_cache = pd.concat([df_cache, pd.DataFrame([{
-                    "auction_id": auction_id,
-                    "risk_summary": "Not Processed",
-                    "last_processed_at": "",
-                    "insights_json": ""
-                }])], ignore_index=True)
+        # --- UPDATED CODE START ---
+        # 🚀 Merge the live data with the cached data to get a comprehensive view
+        # This will contain all auctions from df_ibbi, with cached insights merged in
+        df_merged_for_display = pd.merge(df_ibbi[['auction_id']], df_cache, on='auction_id', how='left')
 
-        save_risk_cache(df_cache)
-
+        # Fill any missing risk summaries from the cache with "Not Processed"
+        df_merged_for_display['risk_summary_clean'] = df_merged_for_display['risk_summary'].fillna("Not Processed").str.title()
+        
+        # --- UPDATED CODE END ---
+        
         # 🔄 Refresh button
         if st.button("Refresh Risk Insights"):
             if df_ibbi.empty:
@@ -2089,36 +2086,43 @@ elif page == "⚡ Risk Insights":
                 updated_rows = []
                 progress = st.progress(0)
 
+                # Iterate over the live auctions that need processing
                 for i, (_, row) in enumerate(df_ibbi.iterrows()):
                     auction_id = str(row["auction_id"]).strip()
-                    existing = df_cache[df_cache["auction_id"] == auction_id]
+                    
+                    # Look up the row in the merged DataFrame to check its current status
+                    current_status = df_merged_for_display[df_merged_for_display["auction_id"] == auction_id].iloc[0]['risk_summary_clean']
+                    last_processed_at = pd.to_datetime(df_merged_for_display[df_merged_for_display["auction_id"] == auction_id].iloc[0]['last_processed_at'], errors='coerce')
 
-                    # ⚡ Check cache status
-                    status = existing.iloc[0]["risk_summary"] if not existing.empty else "Not Processed"
-                    last_time = pd.to_datetime(existing.iloc[0]["last_processed_at"], errors='coerce') if not existing.empty else None
+                    # ✅ Only process if status is "Not Processed" or "Error" or the cache is expired
+                    is_expired = pd.notna(last_processed_at) and (datetime.utcnow() - last_processed_at.to_pydatetime()).days >= RISK_CACHE_TTL_DAYS
 
-                    # ✅ Only skip if already successfully processed within TTL
-                    if status not in ["Error", "Not Processed"]:
-                        if pd.notna(last_time) and (datetime.utcnow() - last_time.to_pydatetime()).days < RISK_CACHE_TTL_DAYS:
-                            continue
-
-                    # 🚀 Process auction row
-                    processed = process_single_auction_row(row, llm)
-                    df_cache = df_cache[df_cache["auction_id"] != auction_id]  # remove old entry
-                    df_cache = pd.concat([df_cache, pd.DataFrame([processed])], ignore_index=True)
-                    save_risk_cache(df_cache)
-
-                    updated_rows.append(processed)
+                    if current_status.title() in ["Not Processed", "Error"] or is_expired:
+                        # 🚀 Process auction row
+                        processed = process_single_auction_row(row, llm)
+                        updated_rows.append(processed)
+                    
                     progress.progress(int((i + 1) / len(df_ibbi) * 100))
 
-                st.success(f"Processed {len(updated_rows)} auctions and updated cache.")
+                if updated_rows:
+                    # Update the cache with the new results
+                    df_new_results = pd.DataFrame(updated_rows)
+                    df_updated_cache = pd.concat([df_cache, df_new_results]).drop_duplicates(subset='auction_id', keep='last')
+                    save_risk_cache(df_updated_cache)
+                    st.success(f"Processed {len(updated_rows)} auctions and updated cache.")
+                else:
+                    st.info("No new auctions to process.")
 
-        # 📊 Reload cache after refresh
-        df_cache = load_risk_cache()
-        df_cache["risk_summary_clean"] = df_cache["risk_summary"].fillna("Unknown").str.title()
-
-        # 🧮 Summary counts
-        counts = df_cache["risk_summary_clean"].value_counts().to_dict()
+        # --- UPDATED CODE START ---
+        # Reload the cache after a refresh or for the initial load
+        df_cache_for_display = load_risk_cache()
+        
+        # Merge the full list of future IBBI auctions with the cache for the final display
+        df_final_display = pd.merge(df_ibbi[['auction_id']], df_cache_for_display, on='auction_id', how='left')
+        df_final_display['risk_summary_clean'] = df_final_display['risk_summary'].fillna("Not Processed").str.title()
+        
+        # 🧮 Summary counts are now calculated from the complete, merged DataFrame
+        counts = df_final_display["risk_summary_clean"].value_counts().to_dict()
 
         # 🔘 Display summary buttons
         c1, c2, c3, c4, c5 = st.columns(5)
@@ -2142,12 +2146,12 @@ elif page == "⚡ Risk Insights":
         # 📋 Display table if clicked
         if clicked:
             st.markdown(f"### Auctions in: {clicked}")
-            df_sel = df_cache[df_cache["risk_summary_clean"] == clicked].copy()
+            df_sel = df_final_display[df_final_display["risk_summary_clean"] == clicked].copy()
             st.dataframe(df_sel[["auction_id", "risk_summary", "last_processed_at"]])
         else:
             st.markdown("**Summary counts:**")
             st.write(counts)
-
+        # --- UPDATED CODE END ---
 
 
 #######################################################################################################################################################################################################
@@ -2160,6 +2164,95 @@ elif page == "📚 PBN FAQs":
     st.markdown("Explore frequently asked questions about the Property Bidding Network (PBN) to understand its features, integration, and benefits.")
 
     # FAQ Data
+    risk_faqs = [
+        {
+            "question": "What is the Legal Compliance Score?",
+            "answer": """The Legal Compliance score indicates how well the auction notice and process align with the Insolvency and Bankruptcy Code (IBC) guidelines and related regulations.  
+            
+            **Factors considered:**  
+            • Whether statutory notice periods (e.g., 21 days under Rule 8(6) of IBC) are met.  
+            • Presence of mandatory documents (Sale Notice, Auction Process Document, Terms & Conditions).  
+            • Appointment and authorization details of the liquidator/auction authority.  
+            • Mention of reserve price, EMD, payment terms, and timelines.  
+            • Disclosure of litigation, encumbrances, or title ownership status.  
+
+            **Interpretation:**  
+            - High Score (8–10): Fully compliant.  
+            - Medium Score (4–7): Mostly compliant, minor gaps.  
+            - Low Score (0–3): Major lapses (e.g., missing notices, improper timelines)."""
+        },
+        {
+            "question": "What is the Economical Score?",
+            "answer": """The Economical Score reflects the financial attractiveness and valuation fairness of the auctioned assets.  
+
+            **Factors considered:**  
+            • Reserve price vs. market benchmarks.  
+            • EMD reasonableness.  
+            • Incremental bid value fairness.  
+            • Asset liquidity.  
+
+            **Interpretation:**  
+            - High Score (8–10): Fair pricing, realistic terms.  
+            - Medium Score (4–7): Some mismatches or barriers.  
+            - Low Score (0–3): Over/undervalued, unrealistic EMD/increments."""
+        },
+        {
+            "question": "What is the Market Trends Score?",
+            "answer": """The Market Trends Score evaluates how the asset’s sector and geography align with current demand.  
+
+            **Factors considered:**  
+            • Industry outlook.  
+            • Regional economic activity.  
+
+            **Interpretation:**  
+            - High Score (8–10): High demand, favorable trends.  
+            - Medium Score (4–7): Stable demand.  
+            - Low Score (0–3): Declining industry or weak demand."""
+        },
+        {
+            "question": "What is the Final Score?",
+            "answer": """The Final Score is a weighted composite of Legal Compliance, Economical, and Market Trends scores.  
+
+            **Formula:**  
+            Final Score = (Legal + Economical + Market Trends) ÷ 3  
+
+            **Interpretation:**  
+            - 8–10: Very Attractive Auction.  
+            - 4–7: Average Auction.  
+            - 0–3: Risky Auction."""
+        },
+        {
+            "question": "What is the Risk Summary?",
+            "answer": """The Risk Summary is a qualitative interpretation of the Final Score.  
+
+            • Low Risk: High compliance, fair valuation, strong demand.  
+            • Average Risk: Minor gaps.  
+            • High Risk: Major compliance/pricing/market issues."""
+        },
+        {
+            "question": "What is the Reference Summary?",
+            "answer": """The Reference Summary provides supporting context for each score.  
+
+            • Contact detail quality.  
+            • Timelines (notice, EMD).  
+            • Legal compliance with IBC.  
+            • Asset description completeness.  
+            • Valuation benchmarks.  
+            • Market conditions."""
+        },
+        {
+            "question": "What other insights do we provide?",
+            "answer": """Apart from scoring, the platform extracts:  
+
+            • Corporate Debtor Info.  
+            • Auction Details (date, platform, inspection).  
+            • Asset Information (type, reserve price, EMD, increments).  
+            • Contact Information (liquidator details).  
+            • Regulation Checks (IBC Rule 8(6), Reg. 33).  
+            • Listing Quality Assessment."""
+        }
+    ]
+
     faqs = [
         {
             "question": "What is PBN in one line?",
@@ -2260,6 +2353,11 @@ elif page == "📚 PBN FAQs":
     ]
 
     # FAQ Sections
+    st.markdown('<div class="sub-header">Auction Risk & Scoring FAQs</div>', unsafe_allow_html=True)
+    for faq in risk_faqs:
+        with st.expander(faq["question"]):
+            st.markdown(f'<div class="faq-answer">{faq["answer"]}</div>', unsafe_allow_html=True)
+
     st.markdown('<div class="sub-header">General Information</div>', unsafe_allow_html=True)
     for faq in faqs[:5]:
         with st.expander(faq["question"]):
@@ -2289,6 +2387,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
