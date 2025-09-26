@@ -34,6 +34,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from datetime import date, datetime
+from bs4 import BeautifulSoup
 
 
 
@@ -1551,7 +1552,8 @@ def initialize_llm():
     )
 
 
-RISK_CACHE_PATH = Path("auction_exports/risk_cache.csv")
+
+RISK_CACHE_PATH = Path("/mount/src/Prop_v1/auction_exports/risk_cache.csv")
 RISK_CACHE_TTL_DAYS = 1
 
 def load_risk_cache():
@@ -1567,9 +1569,38 @@ def load_risk_cache():
         # If file doesn't exist or is empty, create a new DataFrame
         return pd.DataFrame(columns=["auction_id", "risk_summary", "last_processed_at", "insights_json"])
 
-def save_risk_cache(df_cache):
-    df_cache.to_csv(RISK_CACHE_PATH, index=False)
+import os
+import pandas as pd
+# Assuming the global RISK_CACHE_PATH is defined correctly as above
 
+def save_risk_cache(df_cache: pd.DataFrame):
+    """Saves the DataFrame to the cache path with error trapping."""
+    
+    # Ensure the directory exists before attempting to save
+    # This is a common failure point in new environments
+    cache_dir = RISK_CACHE_PATH.parent
+    if not cache_dir.exists():
+        os.makedirs(cache_dir, exist_ok=True)
+        print(f"Created directory: {cache_dir}")
+
+    # --- Start Saving Attempt ---
+    try:
+        df_cache.to_csv(RISK_CACHE_PATH, index=False)
+        
+        # Confirmation printout that will appear in your console/logs
+        print("-" * 50)
+        print(f"✅ SUCCESS: Cache saved to {RISK_CACHE_PATH.resolve()}")
+        print(f"Cache Size: {df_cache.shape[0]} rows.")
+        print("-" * 50)
+        
+    except Exception as e:
+        # Critical error trapping for file permissions/path issues
+        print("\n" * 2)
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"!!! ❌ FATAL CACHE SAVE ERROR: {e}")
+        print(f"!!! Check permissions for path: {RISK_CACHE_PATH.resolve()}")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("\n" * 2)
 def extract_pdf_details(pdf_url: str) -> dict:
     response = requests.get(pdf_url)
     response.raise_for_status()
@@ -2389,6 +2420,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
