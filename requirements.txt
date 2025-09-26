@@ -16,6 +16,8 @@ babel
 numpy
 pandas
 pytesseract
+beautifulsoup4
+
 
 
 
