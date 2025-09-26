@@ -2356,7 +2356,7 @@ elif page == "📚 PBN FAQs":
     st.markdown('<div class="sub-header">Auction Risk & Scoring FAQs</div>', unsafe_allow_html=True)
     for faq in risk_faqs:
         with st.expander(faq["question"]):
-        st.markdown(faq["answer"])
+            st.markdown(faq["answer"])
 
 
     st.markdown('<div class="sub-header">General Information</div>', unsafe_allow_html=True)
@@ -2388,6 +2388,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
