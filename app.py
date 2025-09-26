@@ -2352,12 +2352,7 @@ elif page == "📚 PBN FAQs":
         }
     ]
 
-    # FAQ Sections
-    st.markdown('<div class="sub-header">Auction Risk & Scoring FAQs</div>', unsafe_allow_html=True)
-    for faq in risk_faqs:
-        with st.expander(faq["question"]):
-            st.markdown(faq["answer"])
-
+   
 
     st.markdown('<div class="sub-header">General Information</div>', unsafe_allow_html=True)
     for faq in faqs[:5]:
@@ -2384,10 +2379,17 @@ elif page == "📚 PBN FAQs":
         with st.expander(faq["question"]):
             st.markdown(f'<div class="faq-answer">{faq["answer"]}</div>', unsafe_allow_html=True)
 
+    # FAQ Sections
+    st.markdown('<div class="sub-header">Auction Risk & Scoring FAQs</div>', unsafe_allow_html=True)
+    for faq in risk_faqs:
+        with st.expander(faq["question"]):
+            st.markdown(faq["answer"])
+
     # Download FAQs as PDF (placeholder for future implementation)
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
