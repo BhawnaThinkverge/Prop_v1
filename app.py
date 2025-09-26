@@ -1551,7 +1551,7 @@ def initialize_llm():
     )
 
 
-RISK_CACHE_PATH = Path("risk_cache.csv")
+RISK_CACHE_PATH = Path("auction_exports/risk_cache.csv")
 RISK_CACHE_TTL_DAYS = 1
 
 def load_risk_cache():
@@ -2389,6 +2389,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
