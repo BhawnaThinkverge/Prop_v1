@@ -2169,14 +2169,14 @@ elif page == "📚 PBN FAQs":
             "question": "What is the Legal Compliance Score?",
             "answer": """The Legal Compliance score indicates how well the auction notice and process align with the Insolvency and Bankruptcy Code (IBC) guidelines and related regulations.  
             
-            **Factors considered:**  
+            Factors considered:
             • Whether statutory notice periods (e.g., 21 days under Rule 8(6) of IBC) are met.  
             • Presence of mandatory documents (Sale Notice, Auction Process Document, Terms & Conditions).  
             • Appointment and authorization details of the liquidator/auction authority.  
             • Mention of reserve price, EMD, payment terms, and timelines.  
             • Disclosure of litigation, encumbrances, or title ownership status.  
 
-            **Interpretation:**  
+            Interpretation:
             - High Score (8–10): Fully compliant.  
             - Medium Score (4–7): Mostly compliant, minor gaps.  
             - Low Score (0–3): Major lapses (e.g., missing notices, improper timelines)."""
@@ -2185,13 +2185,13 @@ elif page == "📚 PBN FAQs":
             "question": "What is the Economical Score?",
             "answer": """The Economical Score reflects the financial attractiveness and valuation fairness of the auctioned assets.  
 
-            **Factors considered:**  
+            Factors considered:
             • Reserve price vs. market benchmarks.  
             • EMD reasonableness.  
             • Incremental bid value fairness.  
             • Asset liquidity.  
 
-            **Interpretation:**  
+            Interpretation:  
             - High Score (8–10): Fair pricing, realistic terms.  
             - Medium Score (4–7): Some mismatches or barriers.  
             - Low Score (0–3): Over/undervalued, unrealistic EMD/increments."""
@@ -2200,11 +2200,11 @@ elif page == "📚 PBN FAQs":
             "question": "What is the Market Trends Score?",
             "answer": """The Market Trends Score evaluates how the asset’s sector and geography align with current demand.  
 
-            **Factors considered:**  
+            Factors considered: 
             • Industry outlook.  
             • Regional economic activity.  
 
-            **Interpretation:**  
+            Interpretation: 
             - High Score (8–10): High demand, favorable trends.  
             - Medium Score (4–7): Stable demand.  
             - Low Score (0–3): Declining industry or weak demand."""
@@ -2213,10 +2213,10 @@ elif page == "📚 PBN FAQs":
             "question": "What is the Final Score?",
             "answer": """The Final Score is a weighted composite of Legal Compliance, Economical, and Market Trends scores.  
 
-            **Formula:**  
+            Formula: 
             Final Score = (Legal + Economical + Market Trends) ÷ 3  
 
-            **Interpretation:**  
+            Interpretation:  
             - 8–10: Very Attractive Auction.  
             - 4–7: Average Auction.  
             - 0–3: Risky Auction."""
@@ -2387,6 +2387,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
