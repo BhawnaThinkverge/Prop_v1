@@ -2060,6 +2060,7 @@ elif page == "⚡ Risk Insights":
             df_ibbi['emd_submission_date'], format='%d-%m-%Y', errors='coerce'
         )
         df_ibbi = df_ibbi[df_ibbi['emd_submission_date_dt'].dt.date >= today]
+        df_ibbi.drop_duplicates(subset=['auction_id'], keep='first', inplace=True)
 
         if df_ibbi.empty:
             st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
@@ -2067,15 +2068,15 @@ elif page == "⚡ Risk Insights":
         # 🔄 Load risk cache
         df_cache = load_risk_cache()
 
-        # --- UPDATED CODE START ---
-        # 🚀 Merge the live data with the cached data to get a comprehensive view
+       
+        # Merge the live data with the cached data to get a comprehensive view
         # This will contain all auctions from df_ibbi, with cached insights merged in
         df_merged_for_display = pd.merge(df_ibbi[['auction_id']], df_cache, on='auction_id', how='left')
 
         # Fill any missing risk summaries from the cache with "Not Processed"
         df_merged_for_display['risk_summary_clean'] = df_merged_for_display['risk_summary'].fillna("Not Processed").str.title()
         
-        # --- UPDATED CODE END ---
+  
         
         # 🔄 Refresh button
         if st.button("Refresh Risk Insights"):
@@ -2113,7 +2114,6 @@ elif page == "⚡ Risk Insights":
                 else:
                     st.info("No new auctions to process.")
 
-        # --- UPDATED CODE START ---
         # Reload the cache after a refresh or for the initial load
         df_cache_for_display = load_risk_cache()
         
@@ -2151,7 +2151,7 @@ elif page == "⚡ Risk Insights":
         else:
             st.markdown("**Summary counts:**")
             st.write(counts)
-        # --- UPDATED CODE END ---
+       
 
 
 #######################################################################################################################################################################################################
@@ -2389,6 +2389,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
