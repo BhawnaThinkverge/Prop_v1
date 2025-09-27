@@ -1571,30 +1571,26 @@ def load_risk_cache():
 
 import os
 import pandas as pd
-# Assuming the global RISK_CACHE_PATH is defined correctly as above
 
 def save_risk_cache(df_cache: pd.DataFrame):
     """Saves the DataFrame to the cache path with error trapping."""
     
-    # Ensure the directory exists before attempting to save
-    # This is a common failure point in new environments
     cache_dir = RISK_CACHE_PATH.parent
     if not cache_dir.exists():
         os.makedirs(cache_dir, exist_ok=True)
         print(f"Created directory: {cache_dir}")
 
-    # --- Start Saving Attempt ---
+  
     try:
         df_cache.to_csv(RISK_CACHE_PATH, index=False)
         
-        # Confirmation printout that will appear in your console/logs
         print("-" * 50)
         print(f"✅ SUCCESS: Cache saved to {RISK_CACHE_PATH.resolve()}")
         print(f"Cache Size: {df_cache.shape[0]} rows.")
         print("-" * 50)
         
     except Exception as e:
-        # Critical error trapping for file permissions/path issues
+     
         print("\n" * 2)
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print(f"!!! ❌ FATAL CACHE SAVE ERROR: {e}")
@@ -1674,7 +1670,7 @@ def regex_preparser(markdown: str, chunks: list) -> dict:
     if auction_date_match:
         parsed["auction_date"] = auction_date_match.group(1).strip()
     else:
-        # Fallback regex, but more specific to avoid false positives
+     
         fallback_date_match = re.search(
             r'(?:auction.*?)(\d{1,2}[./]\d{1,2}[./]\d{4}|\d{1,2}(st|nd|rd|th)?\s+\w+\s*,?\s*\d{4})',
             markdown,
@@ -1750,7 +1746,7 @@ def regex_preparser(markdown: str, chunks: list) -> dict:
                     if "last date for inspection / due diligence" in row_data:
                         parsed["inspection_date"] = row_data["last date for inspection / due diligence"].strip()
                     
-                    # Now, process assets, but only if the row contains an asset-related header
+                  
                     is_asset_row = any(keyword in row_data for keyword in ["asset", "description", "lot", "reserve price", "emd amount"])
                     
                     if is_asset_row:
@@ -2034,17 +2030,37 @@ def process_single_auction_row(auction_row, llm):
             ranking = insights.get("ranking", {})
             result_row["risk_summary"] = ranking.get("risk_summary", "Unknown")
             result_row["insights_json"] = json.dumps(insights, default=str)
-            print(f"✅ Processed {auction_id} → {result_row['risk_summary']}")
+            print(f"Processed {auction_id} → {result_row['risk_summary']}")
         else:
             result_row["risk_summary"] = "Error"
             result_row["insights_json"] = json.dumps(res, default=str)
-            print(f"⚠️ Error result for {auction_id}: {res}")
+            print(f"Error result for {auction_id}: {res}")
     except Exception as e:
         result_row["risk_summary"] = "Error"
         result_row["insights_json"] = json.dumps({"error": str(e)}, default=str)
-        print(f"❌ Exception for {auction_id}: {e}")
+        print(f"Exception for {auction_id}: {e}")
 
     return result_row
+
+def process_and_cache_auction(auction_row, llm):
+    df_cache = load_risk_cache()
+    auction_id = str(auction_row.get("auction_id", "UNKNOWN")).strip()
+
+    # If cached → return
+    if not df_cache.empty and auction_id in df_cache["auction_id"].values:
+        cached_row = df_cache[df_cache["auction_id"] == auction_id].iloc[0].to_dict()
+        print(f"🔄 Loaded from cache: {auction_id}")
+        return cached_row
+
+    # Otherwise process new
+    result_row = process_single_auction_row(auction_row, llm)
+
+    # Save to cache
+    df_cache = pd.concat([df_cache, pd.DataFrame([result_row])], ignore_index=True)
+    save_risk_cache(df_cache)
+
+    return result_row
+
 
 
 # AI Anaysis Page
@@ -2108,7 +2124,7 @@ elif page == "⚡ Risk Insights":
         if df_ibbi.empty:
             st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
 
-        # 🔄 Load risk cache
+        #  Load risk cache
         df_cache = load_risk_cache()
 
        
@@ -2121,7 +2137,7 @@ elif page == "⚡ Risk Insights":
         
   
         
-        # 🔄 Refresh button
+        # Refresh button
         if st.button("Refresh Risk Insights"):
             if df_ibbi.empty:
                 st.warning("No auctions to process with EMD date today or in future.")
@@ -2448,6 +2464,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
