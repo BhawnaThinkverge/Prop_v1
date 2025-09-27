@@ -2157,6 +2157,22 @@ elif page == "⚡ Risk Insights":
                 else:
                     st.info("No new auctions to process.")
 
+                # 🔴 EXTRA STEP: Retry failed rows
+                failed_rows = df_updated_cache[df_updated_cache["risk_summary"].isin(["Error", "Not Processed"])]
+
+                if not failed_rows.empty:
+                    st.warning(f"Retrying {len(failed_rows)} failed rows...")
+                    retried = []
+                    for _, row in failed_rows.iterrows():
+                        fixed = process_single_auction_row(row, llm)  # reuse your existing function
+                        retried.append(fixed)
+
+                    if retried:
+                        df_retry_results = pd.DataFrame(retried)
+                        df_updated_cache = pd.concat([df_updated_cache, df_retry_results]).drop_duplicates(subset='auction_id', keep='last')
+                        save_risk_cache(df_updated_cache)
+                        st.success(f"Retried and updated {len(retried)} rows.")
+
         # Reload the cache after a refresh or for the initial load
         df_cache_for_display = load_risk_cache()
         
@@ -2432,6 +2448,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
