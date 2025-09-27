@@ -1919,12 +1919,24 @@ Your entire response MUST be a single valid JSON object with the specified struc
 """
     # Call LLM
     messages = [{"role": "user", "content": prompt}]
-    resp = llm.invoke(messages, response_format={"type": "json_object"})
-    raw_output = resp.content
-
+    retries = 3
+    for attempt in range(retries):
+        try:
+            resp = llm.invoke(messages, response_format={"type": "json_object"})
+            raw_output = resp.content
+            break
+        except Exception as e:
+            if attempt == retries - 1:
+                return {"error": f"API call failed after {retries} retries", "details": str(e)}
+            time.sleep(2)
     try:
-        parsed = json.loads(raw_output)
-
+        if isinstance(raw_output, str):
+            parsed = json.loads(raw_output)
+        elif isinstance(raw_output, dict):
+            parsed = raw_output
+        else:
+            return {"error": "Unexpected response type", "raw": str(raw_output)}
+            
         parsed.setdefault("ranking", {})
         ranking = parsed["ranking"]
         ranking.setdefault("legal_compliance_score", 0)
@@ -2420,6 +2432,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
