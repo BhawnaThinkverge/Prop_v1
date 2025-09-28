@@ -20,8 +20,6 @@ from urllib.parse import urljoin
 import fitz 
 import pytesseract
 from PIL import Image, ImageOps
-from groq import async_client
-import asyncio
 from langchain_groq import ChatGroq
 from typing import Optional, List, Tuple, Dict, Any
 import logging
@@ -2506,6 +2504,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
