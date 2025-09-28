@@ -35,6 +35,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 from datetime import date, datetime
 from bs4 import BeautifulSoup
+from sqlalchemy import create_engine
 
 
 
@@ -1553,12 +1554,8 @@ def initialize_llm():
 
 
 
-RISK_CACHE_PATH = os.path.join(st.get_app_path(), 'risk_cache.sqlite')
-# NOTE: The above path is a suggestion. st.get_app_path() might not be ideal. 
-# A safer path often used for cache is st.session_state or st.cache_data, but for a DB file, 
-# we should use a consistent path. Let's use the current path and rely on Streamlit's file mounting.
-RISK_CACHE_DIR = "/mount/src/Prop_v1/auction_exports" # Keep the directory you created
-RISK_CACHE_FILE = os.path.join(RISK_CACHE_DIR, 'risk_cache.sqlite') # Change to SQLite file
+RISK_CACHE_DIR = "auction_exports" 
+RISK_CACHE_FILE = os.path.join(RISK_CACHE_DIR, 'risk_cache.sqlite') 
 RISK_CACHE_TTL_DAYS = 1
 
 def load_risk_cache():
@@ -2455,6 +2452,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
