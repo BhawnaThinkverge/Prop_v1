@@ -2056,24 +2056,54 @@ def process_single_auction_row(auction_row, llm):
         result_row["risk_summary"] = "Not Processed"
     return result_row
 
+# Assuming your llm and initialization functions are defined earlier
+
 def process_and_cache_auction(auction_row, llm):
+    # 1. Load the current cache 
     df_cache = load_risk_cache()
     auction_id = str(auction_row.get("auction_id", "UNKNOWN")).strip()
-
-    # If cached → return
-    if not df_cache.empty and auction_id in df_cache["auction_id"].values:
-        cached_row = df_cache[df_cache["auction_id"] == auction_id].iloc[0].to_dict()
-        print(f"🔄 Loaded from cache: {auction_id}")
-        return cached_row
-
-    # Otherwise process new
-    result_row = process_single_auction_row(auction_row, llm)
-
-    df_updated_cache = df_cache.drop_duplicates(subset='auction_id', keep='last')
-
-    save_risk_cache(df_updated_cache)
-
-    return result_row
+    
+    # 2. Check Expiration/Status (for processing new/expired items)
+    
+    # First, check if the auction ID exists in the cache
+    cached_row = df_cache[df_cache["auction_id"] == auction_id]
+    
+    # Set flags for whether we need to process
+    needs_processing = True
+    
+    if not cached_row.empty:
+        current_status = cached_row.iloc[0].get('risk_summary', 'Not Processed').title()
+        last_processed_at = pd.to_datetime(cached_row.iloc[0].get('last_processed_at'), errors='coerce')
+        
+        # Check for expired/needs retry
+        is_expired = pd.notna(last_processed_at) and (datetime.utcnow() - last_processed_at.to_pydatetime()).days >= RISK_CACHE_TTL_DAYS
+        
+        if current_status not in ["Not Processed", "Error"] and not is_expired:
+            print(f"🔄 Loaded from cache: {auction_id}")
+            # Return the existing data if it's still valid
+            return cached_row.iloc[0].to_dict()
+        
+        # If we reach here, it needs processing (Error, Not Processed, or Expired)
+        needs_processing = True
+    
+    if needs_processing:
+        # 3. Process the auction row
+        print(f"🚀 Processing auction: {auction_id}")
+        result_row = process_single_auction_row(auction_row, llm)
+        df_new_row = pd.DataFrame([result_row]) # Convert the result to a DataFrame
+        
+        # 4. Update the Cache (Crucial Step)
+        # Combine existing cache with the new result, keeping the latest one (i.e., the one we just processed)
+        df_updated_cache = pd.concat([df_cache, df_new_row], ignore_index=True) \
+                             .drop_duplicates(subset='auction_id', keep='last')
+        
+        # 5. Save the full, updated cache
+        save_risk_cache(df_updated_cache)
+        
+        return result_row
+    
+    # Fallback return (shouldn't be reached if logic is perfect, but safe to have)
+    return auction_row.to_dict()
 
 
 
@@ -2452,6 +2482,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
