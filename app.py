@@ -20,6 +20,8 @@ from urllib.parse import urljoin
 import fitz 
 import pytesseract
 from PIL import Image, ImageOps
+from groq import async_client
+import asyncio
 from langchain_groq import ChatGroq
 from typing import Optional, List, Tuple, Dict, Any
 import logging
@@ -2058,7 +2060,7 @@ def process_single_auction_row(auction_row, llm):
 
 # Assuming your llm and initialization functions are defined earlier
 
-def process_and_cache_auction(auction_row, llm):
+def process_and_cache_auction(auction_row, llm, force_refresh=False):
     # 1. Load the current cache 
     df_cache = load_risk_cache()
     auction_id = str(auction_row.get("auction_id", "UNKNOWN")).strip()
@@ -2068,15 +2070,18 @@ def process_and_cache_auction(auction_row, llm):
     # First, check if the auction ID exists in the cache
     cached_row = df_cache[df_cache["auction_id"] == auction_id]
     
-    # Set flags for whether we need to process
+    # Default: assume we need to process
     needs_processing = True
     
-    if not cached_row.empty:
+    if not cached_row.empty and not force_refresh:
         current_status = cached_row.iloc[0].get('risk_summary', 'Not Processed').title()
         last_processed_at = pd.to_datetime(cached_row.iloc[0].get('last_processed_at'), errors='coerce')
         
         # Check for expired/needs retry
-        is_expired = pd.notna(last_processed_at) and (datetime.utcnow() - last_processed_at.to_pydatetime()).days >= RISK_CACHE_TTL_DAYS
+        is_expired = (
+            pd.notna(last_processed_at)
+            and (datetime.utcnow() - last_processed_at.to_pydatetime()).days >= RISK_CACHE_TTL_DAYS
+        )
         
         if current_status not in ["Not Processed", "Error"] and not is_expired:
             print(f"🔄 Loaded from cache: {auction_id}")
@@ -2090,12 +2095,14 @@ def process_and_cache_auction(auction_row, llm):
         # 3. Process the auction row
         print(f"🚀 Processing auction: {auction_id}")
         result_row = process_single_auction_row(auction_row, llm)
-        df_new_row = pd.DataFrame([result_row]) # Convert the result to a DataFrame
+        df_new_row = pd.DataFrame([result_row])  # Convert the result to a DataFrame
         
         # 4. Update the Cache (Crucial Step)
-        # Combine existing cache with the new result, keeping the latest one (i.e., the one we just processed)
-        df_updated_cache = pd.concat([df_cache, df_new_row], ignore_index=True) \
-                             .drop_duplicates(subset='auction_id', keep='last')
+        # Combine existing cache with the new result, keeping the latest one
+        df_updated_cache = (
+            pd.concat([df_cache, df_new_row], ignore_index=True)
+              .drop_duplicates(subset='auction_id', keep='last')
+        )
         
         # 5. Save the full, updated cache
         save_risk_cache(df_updated_cache)
@@ -2154,30 +2161,39 @@ elif page == "⚡ Risk Insights":
         st.warning("Auction data not available.")
     else:
         # 🧹 Clean column names
-        df.columns = df.columns.str.strip().str.lower().str.replace(r"[^\w]+", "_", regex=True).str.strip("_")
+        df.columns = (
+            df.columns.str.strip()
+            .str.lower()
+            .str.replace(r"[^\w]+", "_", regex=True)
+            .str.strip("_")
+        )
 
         # 📌 Filter only IBBI auctions with EMD date today or in future
         df_ibbi = df[df["source"].str.lower().str.contains("ibbi", na=False)].copy()
-        df_ibbi['emd_submission_date_dt'] = pd.to_datetime(
-            df_ibbi['emd_submission_date'], format='%d-%m-%Y', errors='coerce'
+        df_ibbi["emd_submission_date_dt"] = pd.to_datetime(
+            df_ibbi["emd_submission_date"], format="%d-%m-%Y", errors="coerce"
         )
-        df_ibbi = df_ibbi[df_ibbi['emd_submission_date_dt'].dt.date >= today]
-        df_ibbi.drop_duplicates(subset=['auction_id'], keep='first', inplace=True)
+        df_ibbi = df_ibbi[df_ibbi["emd_submission_date_dt"].dt.date >= today]
+        df_ibbi.drop_duplicates(subset=["auction_id"], keep="first", inplace=True)
 
         if df_ibbi.empty:
             st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
 
-        #  Load risk cache (used for display and logic checks)
+        # Load risk cache (used for display and logic checks)
         df_cache = load_risk_cache()
 
-        
         # Merge the live data with the cached data to get a comprehensive view
-        df_merged_for_display = pd.merge(df_ibbi[['auction_id']], df_cache, on='auction_id', how='left')
+        df_merged_for_display = pd.merge(
+            df_ibbi[["auction_id"]], df_cache, on="auction_id", how="left"
+        )
 
         # Fill any missing risk summaries from the cache with "Not Processed"
-        df_merged_for_display['risk_summary_clean'] = df_merged_for_display['risk_summary'].fillna("Not Processed").str.title()
-        
-        
+        df_merged_for_display["risk_summary_clean"] = (
+            df_merged_for_display["risk_summary"]
+            .fillna("Not Processed")
+            .str.title()
+        )
+
         # Refresh button
         if st.button("Refresh Risk Insights"):
             if df_ibbi.empty:
@@ -2189,34 +2205,40 @@ elif page == "⚡ Risk Insights":
                 processed_count = 0
                 total_to_process = len(df_ibbi)
 
-                # Iterate over all live auctions. The processing function will decide to skip or run.
+                # Iterate over all live auctions
                 for i, (_, row) in enumerate(df_ibbi.iterrows()):
-                    
-                    # 🚨 NEW, CLEANER LOGIC: The process_and_cache_auction function handles 
-                    # the check (is it processed?) and the save (save_risk_cache) internally for each row.
-                    processed_row = process_and_cache_auction(row, llm)
-                    
-                    # Check the result to count how many were *actually* processed (not just loaded from cache)
-                    # We check the log output from the function for 'Loaded from cache' to prevent miscounting
-                    if 'Loaded from cache' not in processed_row.get('risk_summary', ''):
+
+                    # 🚨 NEW, CLEANER LOGIC:
+                    # process_and_cache_auction handles cache check + save internally
+                    processed_row = process_and_cache_auction(row, llm, force_refresh=True)
+
+
+                    # Count how many were actually processed
+                    if "Loaded from cache" not in processed_row.get("risk_summary", ""):
                         processed_count += 1
-                    
+
                     progress.progress(int((i + 1) / total_to_process * 100))
 
-                # After the loop finishes:
+                # After the loop finishes
                 if processed_count > 0:
-                    st.success(f"Processing run complete. {processed_count} auctions were analyzed/updated and cache was saved.")
+                    st.success(
+                        f"Processing run complete. {processed_count} auctions were analyzed/updated and cache was saved."
+                    )
                 else:
                     st.info("No new auctions needed processing or all were loaded from cache.")
 
         # Reload the cache after a refresh or for the initial load
         df_cache_for_display = load_risk_cache()
-        
+
         # Merge the full list of future IBBI auctions with the cache for the final display
-        df_final_display = pd.merge(df_ibbi[['auction_id']], df_cache_for_display, on='auction_id', how='left')
-        df_final_display['risk_summary_clean'] = df_final_display['risk_summary'].fillna("Not Processed").str.title()
-        
-        # 🧮 Summary counts are now calculated from the complete, merged DataFrame
+        df_final_display = pd.merge(
+            df_ibbi[["auction_id"]], df_cache_for_display, on="auction_id", how="left"
+        )
+        df_final_display["risk_summary_clean"] = (
+            df_final_display["risk_summary"].fillna("Not Processed").str.title()
+        )
+
+        # 🧮 Summary counts
         counts = df_final_display["risk_summary_clean"].value_counts().to_dict()
 
         # 🔘 Display summary buttons
@@ -2241,12 +2263,13 @@ elif page == "⚡ Risk Insights":
         # 📋 Display table if clicked
         if clicked:
             st.markdown(f"### Auctions in: {clicked}")
-            df_sel = df_final_display[df_final_display["risk_summary_clean"] == clicked].copy()
+            df_sel = df_final_display[
+                df_final_display["risk_summary_clean"] == clicked
+            ].copy()
             st.dataframe(df_sel[["auction_id", "risk_summary", "last_processed_at"]])
         else:
             st.markdown("**Summary counts:**")
             st.write(counts)
-
 
 #######################################################################################################################################################################################################
 #####################################################################################################################################################################################################
@@ -2483,6 +2506,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
