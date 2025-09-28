@@ -31,7 +31,7 @@ import camelot
 from pdf2image import convert_from_bytes
 import platform
 import tempfile
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from datetime import date, datetime
 from bs4 import BeautifulSoup
@@ -2012,6 +2012,11 @@ def generate_auction_insights(corporate_debtor: str, auction_data: dict, llm, in
 
 def process_single_auction_row(auction_row, llm):
     auction_id = str(auction_row.get("auction_id", "UNKNOWN")).strip()
+    if auction_id == "UNKNOWN" or not auction_id:
+        # fallback auction_id if missing
+        debtor = (auction_row.get("corporate_debtor") or "unknown_debtor").replace(" ", "_")
+        auction_id = f"{debtor}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+
     result_row = {
         "auction_id": auction_id,
         "risk_summary": "Unknown",
@@ -2038,8 +2043,11 @@ def process_single_auction_row(auction_row, llm):
     except Exception as e:
         result_row["risk_summary"] = "Error"
         result_row["insights_json"] = json.dumps({"error": str(e)}, default=str)
-        print(f"Exception for {auction_id}: {e}")
+        print(f"❌ Exception for {auction_id}: {e}")
 
+    # 🔧 Ensure risk_summary never stays "Unknown"
+    if result_row["risk_summary"] in ["Unknown", "", None]:
+        result_row["risk_summary"] = "Not Processed"
     return result_row
 
 def process_and_cache_auction(auction_row, llm):
@@ -2464,6 +2472,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
