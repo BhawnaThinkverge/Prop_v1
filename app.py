@@ -2184,7 +2184,7 @@ elif page == "⚡ Risk Insights":
                 st.warning("No auctions to process with EMD date today or in future.")
             else:
                 llm = initialize_llm()
-                 print(f"*** DEBUG: Starting LLM processing for {len(df_ibbi)} auctions. ***")
+                print(f"*** DEBUG: Starting LLM processing for {len(df_ibbi)} auctions. ***")
                 progress = st.progress(0)
                 processed_count = 0
                 total_to_process = len(df_ibbi)
@@ -2483,6 +2483,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
