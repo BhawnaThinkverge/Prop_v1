@@ -1553,50 +1553,59 @@ def initialize_llm():
 
 
 
-RISK_CACHE_PATH = Path("/mount/src/Prop_v1/auction_exports/risk_cache.csv")
+RISK_CACHE_PATH = os.path.join(st.get_app_path(), 'risk_cache.sqlite')
+# NOTE: The above path is a suggestion. st.get_app_path() might not be ideal. 
+# A safer path often used for cache is st.session_state or st.cache_data, but for a DB file, 
+# we should use a consistent path. Let's use the current path and rely on Streamlit's file mounting.
+RISK_CACHE_DIR = "/mount/src/Prop_v1/auction_exports" # Keep the directory you created
+RISK_CACHE_FILE = os.path.join(RISK_CACHE_DIR, 'risk_cache.sqlite') # Change to SQLite file
 RISK_CACHE_TTL_DAYS = 1
 
 def load_risk_cache():
-    # Check if the file exists and is not empty
-    if RISK_CACHE_PATH.exists() and os.path.getsize(RISK_CACHE_PATH) > 0:
-        try:
-            return pd.read_csv(RISK_CACHE_PATH, dtype=str)
-        except pd.errors.EmptyDataError:
-            # Handle the specific case where the file has only a header
-            print("Warning: CSV file is empty, creating a new DataFrame.")
-            return pd.DataFrame(columns=["auction_id", "risk_summary", "last_processed_at", "insights_json"])
-    else:
-        # If file doesn't exist or is empty, create a new DataFrame
-        return pd.DataFrame(columns=["auction_id", "risk_summary", "last_processed_at", "insights_json"])
+    """Loads the risk cache from the SQLite database."""
+    # 🚨 CHANGE 2: Use SQLite
+    if not os.path.exists(RISK_CACHE_FILE):
+        print(f"Cache file not found at: {RISK_CACHE_FILE}")
+        # Return an empty DataFrame with the correct columns
+        return pd.DataFrame(columns=['auction_id', 'risk_summary', 'last_processed_at'])
+    
+    try:
+        # Use SQLAlchemy engine for connecting to SQLite file
+        from sqlalchemy import create_engine
+        engine = create_engine(f'sqlite:///{RISK_CACHE_FILE}')
+        df_cache = pd.read_sql('SELECT * FROM risk_insights', engine)
+        print(f"Cache Size: {len(df_cache)} rows.")
+        return df_cache
+    except Exception as e:
+        print(f"!!! ❌ FATAL CACHE LOAD ERROR: {e}")
+        # Return empty on error
+        return pd.DataFrame(columns=['auction_id', 'risk_summary', 'last_processed_at'])
 
 import os
 import pandas as pd
 
-def save_risk_cache(df_cache: pd.DataFrame):
-    """Saves the DataFrame to the cache path with error trapping."""
-    
-    cache_dir = RISK_CACHE_PATH.parent
-    if not cache_dir.exists():
-        os.makedirs(cache_dir, exist_ok=True)
-        print(f"Created directory: {cache_dir}")
-
-  
+def save_risk_cache(df_cache):
+    """Saves the risk cache to the SQLite database."""
     try:
-        df_cache.to_csv(RISK_CACHE_PATH, index=False)
+        # Create directory if it doesn't exist (you already do this, keep it)
+        os.makedirs(RISK_CACHE_DIR, exist_ok=True)
         
-        print("-" * 50)
-        print(f"✅ SUCCESS: Cache saved to {RISK_CACHE_PATH.resolve()}")
-        print(f"Cache Size: {df_cache.shape[0]} rows.")
-        print("-" * 50)
+        # 🚨 CHANGE 3: Use SQLite
+        from sqlalchemy import create_engine
+        engine = create_engine(f'sqlite:///{RISK_CACHE_FILE}')
         
+        # Save to SQLite table, replacing the table if it exists (always use 'replace' or 'append')
+        df_cache.to_sql('risk_insights', engine, if_exists='replace', index=False)
+        
+        print(f"--------------------------------------------------")
+        print(f"✅ SUCCESS: Cache saved to {RISK_CACHE_FILE}")
+        print(f"Cache Size: {len(df_cache)} rows.")
+        print(f"--------------------------------------------------")
     except Exception as e:
-     
-        print("\n" * 2)
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"--------------------------------------------------")
         print(f"!!! ❌ FATAL CACHE SAVE ERROR: {e}")
-        print(f"!!! Check permissions for path: {RISK_CACHE_PATH.resolve()}")
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("\n" * 2)
+        print(f"--------------------------------------------------")
+        
 def extract_pdf_details(pdf_url: str) -> dict:
     response = requests.get(pdf_url)
     response.raise_for_status()
@@ -2446,6 +2455,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
