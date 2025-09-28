@@ -2143,6 +2143,8 @@ if page == "🤖 AI Analysis":
         if st.button("Generate Insights"):
             with st.spinner("Generating insights..."):
                 insights_result = generate_auction_insights(corporate_debtor, selected_row.to_dict(), llm)
+                 st.markdown
+                 st.json(insights_result)
                 if insights_result["status"] == "success":
                     display_insights(insights_result["insights"])
                 else:
@@ -2505,6 +2507,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
