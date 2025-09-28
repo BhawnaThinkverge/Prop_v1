@@ -17,6 +17,8 @@ numpy
 pandas
 pytesseract
 beautifulsoup4
+SQLAlchemy
+
 
 
 
