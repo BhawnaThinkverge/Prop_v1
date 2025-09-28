@@ -2222,6 +2222,7 @@ elif page == "⚡ Risk Insights":
                     st.success(
                         f"Processing run complete. {processed_count} auctions were analyzed/updated and cache was saved."
                     )
+                    st.rerun()
                 else:
                     st.info("No new auctions needed processing or all were loaded from cache.")
 
@@ -2504,6 +2505,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
