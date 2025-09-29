@@ -2206,23 +2206,35 @@ elif page == "⚡ Risk Insights":
 
                 # Iterate over all live auctions
                 for i, (_, row) in enumerate(df_ibbi.iterrows()):
+
+                    # --- START OF CRASH-REVEALING TRY/EXCEPT BLOCK ---
+                    auction_id = "UNKNOWN_ID_PRE_CRASH" # Default in case row access fails
                     
-                    # 📢 LOGGING START: Output the ID before processing starts
-                    auction_id = row['auction_id']
-                    print(f"*** DEBUG START: ID: {auction_id} (Iteration {i+1} of {total_to_process}) ***")
+                    try:
+                        auction_id = row['auction_id'] # Attempt to get the ID
+                        
+                        # 📢 LOGGING START: Output the ID before processing starts
+                        print(f"*** DEBUG START: ID: {auction_id} (Iteration {i+1} of {total_to_process}) ***")
 
+                        # 🚨 This is the line that crashes for the 17th ID
+                        processed_row = process_and_cache_auction(row, llm, force_refresh=True)
 
-                    # 🚨 NEW, CLEANER LOGIC:
-                    processed_row = process_and_cache_auction(row, llm, force_refresh=True)
-
-
-                    # Count how many were actually processed
-                    if "Loaded from cache" not in processed_row.get("risk_summary", ""):
-                        processed_count += 1
-                    
-                    # 📢 LOGGING END: Output the result status
-                    summary = processed_row.get("risk_summary", "UNKNOWN_ERROR_IN_PROCESS_FUNC")
-                    print(f"*** DEBUG END: ID {auction_id} finished with status: {summary} ***")
+                        # Count how many were actually processed
+                        if "Loaded from cache" not in processed_row.get("risk_summary", ""):
+                            processed_count += 1
+                        
+                        # 📢 LOGGING END: Output the result status
+                        summary = processed_row.get("risk_summary", "UNKNOWN_ERROR_IN_PROCESS_FUNC")
+                        print(f"*** DEBUG END: ID {auction_id} finished with status: {summary} ***")
+                        
+                    except Exception as e:
+                        # 🎯 CRITICAL: This catches the fatal crash on the 17th ID
+                        print(f"\n\n*** FATAL LOOP CRASH DETECTED ON ID {auction_id} (Iteration {i+1}) ***")
+                        print(f"*** ACTUAL CRASHING ERROR: {type(e).__name__} - {str(e)} ***")
+                        
+                        # Stop the loop immediately after logging the error
+                        break
+                    # --- END OF CRASH-REVEALING TRY/EXCEPT BLOCK ---
 
 
                     progress.progress(int((i + 1) / total_to_process * 100))
@@ -2515,6 +2527,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
