@@ -1488,6 +1488,7 @@ def normalize_keys(obj):
 
 def display_insights(insights: dict):
     st.success("Insights generated successfully!")
+    error_reason = insights.get("details") or insights.get("error") or "Reason not available"
 
     source = str(insights.get("source") or insights.get("auction_platform") or "").lower()
     
@@ -1542,6 +1543,8 @@ def display_insights(insights: dict):
             elif isinstance(references, list):
                 for ref in references:
                     st.markdown(f"- {str(ref)}")
+        else:
+            st.markdown(f"**Reference Summary:** Missing – {error_reason}")
 
 
 @st.cache_resource
@@ -2542,6 +2545,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
