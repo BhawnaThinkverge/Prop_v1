@@ -106,7 +106,7 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigate to:",
-    ["🏠 Dashboard", "🔍 Search Analytics", "📊 Basic Analytics","📈 KPI Analytics","📈 KPI Analytics 2","🤖 AI Analysis","⚡ Risk Insights", "📚 PBN FAQs"],
+    ["🏠 Dashboard", "🔍 Search Analytics", "📊 Basic Analytics","📈 KPI Analytics","📈 KPI Analytics 2",📊 Auction Insights , "📚 PBN FAQs"],
     index=0
 )
 
@@ -2159,170 +2159,96 @@ def process_and_cache_auction(auction_row, llm, force_refresh=False):
     return auction_row.to_dict()
 
 
-# AI Anaysis Page
-if page == "🤖 AI Analysis":
-    st.markdown('<div class="main-header">🤖 AI Analysis</div>', unsafe_allow_html=True)
-    
-    if df is None or df.empty:
-        st.error("No auction data loaded")
-        st.stop()
-    
-    df.columns = df.columns.str.strip().str.lower().str.replace(r"[^\w]+", "_", regex=True).str.strip("_")
-    
-    # Filter IBBI
-    df_filtered = df[df["source"].str.lower().str.contains("ibbi", na=False)]
-    df_filtered['emd_submission_date_dt'] = pd.to_datetime(df_filtered['emd_submission_date'], format='%d-%m-%Y', errors='coerce')
-    df_filtered = df_filtered[df_filtered['emd_submission_date_dt'].dt.date >= date.today()]
-    
-    auction_ids = df_filtered['auction_id'].dropna().unique()
-    selected_id = st.selectbox("Select Auction ID", options=[""] + list(auction_ids))
-    
-    if selected_id:
-        selected_row = df_filtered[df_filtered['auction_id'] == selected_id].iloc[0]
-        corporate_debtor = selected_row.get('bank', '')
-        auction_notice_url = selected_row.get('notice_url') or selected_row.get('auction_notice_url')
-        
-        if not auction_notice_url or "url 2_if available" in str(auction_notice_url).lower():
-            st.warning("Selected auction has no valid Auction Notice URL.")
-            st.stop()
-        
-        llm = initialize_llm()
-        if st.button("Generate Insights"):
-            with st.spinner("Generating insights..."):
-                insights_result = generate_auction_insights(corporate_debtor, selected_row.to_dict(), llm)
-                if insights_result["status"] == "success":
-                    display_insights(insights_result["insights"])
-                else:
-                    st.error("Analysis Failed")
-                    st.exception(Exception(insights_result.get("message", "")))
-
-elif page == "⚡ Risk Insights":
-
-    st.markdown('<div class="main-header">⚡ Risk Insights</div>', unsafe_allow_html=True)
+if page == "📊 Auction Insights": 
+    st.markdown('<div class="main-header">📊 Auction Insights</div>', unsafe_allow_html=True)
 
     today = date.today()
 
     if df is None or df.empty:
-        st.warning("Auction data not available.")
-    else:
-        # 🧹 Clean column names
-        df.columns = (
-            df.columns.str.strip()
-            .str.lower()
-            .str.replace(r"[^\w]+", "_", regex=True)
-            .str.strip("_")
-        )
+        st.error("No auction data loaded")
+        st.stop()
 
-        # 📌 Filter only IBBI auctions with EMD date today or in future
-        df_ibbi = df[df["source"].str.lower().str.contains("ibbi", na=False)].copy()
-        df_ibbi["emd_submission_date_dt"] = pd.to_datetime(
-            df_ibbi["emd_submission_date"], format="%d-%m-%Y", errors="coerce"
-        )
-        df_ibbi = df_ibbi[df_ibbi["emd_submission_date_dt"].dt.date >= today]
-        df_ibbi.drop_duplicates(subset=["auction_id"], keep="first", inplace=True)
+    # 🧹 Clean column names
+    df.columns = (
+        df.columns.str.strip()
+        .str.lower()
+        .str.replace(r"[^\w]+", "_", regex=True)
+        .str.strip("_")
+    )
 
-        if df_ibbi.empty:
-            st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
+    # 📌 Filter only IBBI auctions with EMD date today or in future
+    df_ibbi = df[df["source"].str.lower().str.contains("ibbi", na=False)].copy()
+    df_ibbi["emd_submission_date_dt"] = pd.to_datetime(
+        df_ibbi["emd_submission_date"], format="%d-%m-%Y", errors="coerce"
+    )
+    df_ibbi = df_ibbi[df_ibbi["emd_submission_date_dt"].dt.date >= today]
+    df_ibbi.drop_duplicates(subset=["auction_id"], keep="first", inplace=True)
 
-        # Load risk cache (used for display and logic checks)
-        df_cache = load_risk_cache()
+    if df_ibbi.empty:
+        st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
 
-        # Merge the live data with the cached data to get a comprehensive view
-        df_merged_for_display = pd.merge(
-            df_ibbi[["auction_id"]], df_cache, on="auction_id", how="left"
-        )
+    # Load risk cache (used for counts + display)
+    df_cache = load_risk_cache()
 
-        # Fill any missing risk summaries from the cache with "Error" (No more "Not Processed")
-        df_merged_for_display["risk_summary_clean"] = (
-            df_merged_for_display["risk_summary"]
-            .fillna("Error") # All uncached or failed become 'Error'
-            .str.title()
-        )
+    # Merge for display
+    df_final_display = pd.merge(
+        df_ibbi[["auction_id"]], df_cache, on="auction_id", how="left"
+    )
+    df_final_display["risk_summary_clean"] = (
+        df_final_display["risk_summary"].fillna("Error").str.title()
+    )
 
-        # Refresh button
-        if st.button("Refresh Risk Insights"):
-            with st.spinner("Processing auctions for risk insights..."):
-                if df_ibbi.empty:
-                    st.warning("No auctions to process with EMD date today or in future.")
-                else:
-                    llm = initialize_llm()
-                    print(f"*** DEBUG START: Processing run for {len(df_ibbi)} auctions. ***")
-                    progress = st.progress(0)
-                    processed_count = 0
-                    total_to_process = len(df_ibbi)
+    # 🧮 Summary counts
+    counts = df_final_display["risk_summary_clean"].value_counts().to_dict()
 
-                    # Iterate over all live auctions
-                    # 🚀 The external try/except is REMOVED! 🚀
-                    for i, (_, row) in enumerate(df_ibbi.iterrows()):
+    # 🔘 Display summary buttons
+    st.subheader("Risk Summary Counts")
+    c1, c2, c3, c4 = st.columns(4)
+    clicked = None
+    with c1:
+        if st.button(f"High Risk\n{counts.get('High Risk',0)}"):
+            clicked = "High Risk"
+    with c2:
+        if st.button(f"Average Risk\n{counts.get('Average Risk',0)}"):
+            clicked = "Average Risk"
+    with c3:
+        if st.button(f"Low/No Risk\n{counts.get('Low/No Risk',0)}"):
+            clicked = "Low/No Risk"
+    with c4:
+        if st.button(f"Error\n{counts.get('Error',0)}"):
+            clicked = "Error"
 
-                        auction_id = row['auction_id'] # ID is safe here
+    # 📋 Display filtered table if clicked
+    if clicked:
+        st.markdown(f"### Auctions in: {clicked}")
+        df_sel = df_final_display[df_final_display["risk_summary_clean"] == clicked].copy()
+        st.dataframe(df_sel[["auction_id", "risk_summary", "last_processed_at"]])
 
-                        print(f"\n*** DEBUG START: ID: {auction_id} (Iteration {i+1} of {total_to_process}) ***")
+    st.markdown("---")
 
-                        # 🚨 Call the fully resilient backend function
-                        # All failures (even fatal ones) are now caught and logged as "Error" inside this function.
-                        processed_row = process_and_cache_auction(row, llm, force_refresh=True)
+    # 🎯 Auction ID selection for AI Analysis
+    st.subheader("Auction AI Analysis")
 
-                        # Count how many were actually processed (not loaded from cache)
-                        if "Loaded from cache" not in processed_row.get("risk_summary", ""):
-                            processed_count += 1
-                        
-                        summary = processed_row.get("risk_summary", "UNKNOWN_ERROR_IN_PROCESS_FUNC")
-                        print(f"*** DEBUG END: ID {auction_id} finished with status: {summary} ***")
+    auction_ids = df_ibbi['auction_id'].dropna().unique()
+    selected_id = st.selectbox("Select Auction ID", options=[""] + list(auction_ids))
 
-                        progress.progress(int((i + 1) / total_to_process * 100))
+    if selected_id:
+        selected_row = df_ibbi[df_ibbi['auction_id'] == selected_id].iloc[0]
+        corporate_debtor = selected_row.get('bank', '')
+        auction_notice_url = selected_row.get('notice_url') or selected_row.get('auction_notice_url')
 
-                    # After the loop finishes
-                    if processed_count > 0:
-                        st.success(
-                            f"Processing run complete. {processed_count} auctions were analyzed/updated and cache was saved."
-                        )
-                        st.rerun()
-                    else:
-                        st.info("No new auctions needed processing or all were loaded from cache.")
-
-        # Reload the cache after a refresh or for the initial load
-        df_cache_for_display = load_risk_cache()
-
-        # Merge the full list of future IBBI auctions with the cache for the final display
-        df_final_display = pd.merge(
-            df_ibbi[["auction_id"]], df_cache_for_display, on="auction_id", how="left"
-        )
-        df_final_display["risk_summary_clean"] = (
-            df_final_display["risk_summary"].fillna("Error").str.title() # All uncached or failed become 'Error'
-        )
-
-        # 🧮 Summary counts
-        counts = df_final_display["risk_summary_clean"].value_counts().to_dict()
-
-        # 🔘 Display summary buttons (4 Columns)
-        c1, c2, c3, c4 = st.columns(4) # <-- Changed from 5 columns
-        clicked = None
-        with c1:
-            if st.button(f"High Risk\n{counts.get('High Risk',0)}"):
-                clicked = "High Risk"
-        with c2:
-            if st.button(f"Average Risk\n{counts.get('Average Risk',0)}"):
-                clicked = "Average Risk"
-        with c3:
-            if st.button(f"Low/No Risk\n{counts.get('Low/No Risk',0)}"):
-                clicked = "Low/No Risk"
-        with c4:
-            if st.button(f"Error\n{counts.get('Error',0)}"):
-                clicked = "Error"
-        # The 'Not Processed' button (c5) is removed.
-        
-
-        # 📋 Display table if clicked
-        if clicked:
-            st.markdown(f"### Auctions in: {clicked}")
-            df_sel = df_final_display[
-                df_final_display["risk_summary_clean"] == clicked
-            ].copy()
-            st.dataframe(df_sel[["auction_id", "risk_summary", "last_processed_at"]])
+        if not auction_notice_url or "url 2_if available" in str(auction_notice_url).lower():
+            st.warning("Selected auction has no valid Auction Notice URL.")
         else:
-            st.markdown("**Summary counts:**")
-            st.write(counts)
+            llm = initialize_llm()
+            if st.button("Generate Insights"):
+                with st.spinner("Generating insights..."):
+                    insights_result = generate_auction_insights(corporate_debtor, selected_row.to_dict(), llm)
+                    if insights_result["status"] == "success":
+                        display_insights(insights_result["insights"])
+                    else:
+                        st.error("Analysis Failed")
+                        st.exception(Exception(insights_result.get("message", "")))
 
 
 #######################################################################################################################################################################################################
@@ -2560,6 +2486,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
