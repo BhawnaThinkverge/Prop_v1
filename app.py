@@ -106,7 +106,7 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigate to:",
-    ["🏠 Dashboard", "🔍 Search Analytics", "📊 Basic Analytics","📈 KPI Analytics","📈 KPI Analytics 2",📊 Auction Insights , "📚 PBN FAQs"],
+    ["🏠 Dashboard", "🔍 Search Analytics", "📊 Basic Analytics","📈 KPI Analytics","📈 KPI Analytics 2","📊 Auction Insights" , "📚 PBN FAQs"],
     index=0
 )
 
@@ -2486,6 +2486,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
