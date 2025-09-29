@@ -2187,12 +2187,41 @@ if page == "📊 Auction Insights":
     if df_ibbi.empty:
         st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
 
-    # Load risk cache (used for counts + display)
-    df_cache = load_risk_cache()
+    # ---------------- Risk Insights Section ---------------- #
+    st.subheader("Risk Summary Counts")
 
-    # Merge for display
+    # 🔄 Refresh button (same logic from old Risk Insights page)
+    if st.button("🔄 Refresh Risk Insights"):
+        with st.spinner("Processing auctions for risk insights..."):
+            if df_ibbi.empty:
+                st.warning("No auctions to process with EMD date today or in future.")
+            else:
+                llm = initialize_llm()
+                progress = st.progress(0)
+                processed_count = 0
+                total_to_process = len(df_ibbi)
+
+                for i, (_, row) in enumerate(df_ibbi.iterrows()):
+                    auction_id = row['auction_id']
+                    processed_row = process_and_cache_auction(row, llm, force_refresh=True)
+
+                    if "Loaded from cache" not in processed_row.get("risk_summary", ""):
+                        processed_count += 1
+
+                    progress.progress(int((i + 1) / total_to_process * 100))
+
+                if processed_count > 0:
+                    st.success(
+                        f"Processing complete. {processed_count} auctions were analyzed/updated."
+                    )
+                    st.rerun()
+                else:
+                    st.info("No new auctions needed processing (all loaded from cache).")
+
+    # Reload the cache (initial + after refresh)
+    df_cache_for_display = load_risk_cache()
     df_final_display = pd.merge(
-        df_ibbi[["auction_id"]], df_cache, on="auction_id", how="left"
+        df_ibbi[["auction_id"]], df_cache_for_display, on="auction_id", how="left"
     )
     df_final_display["risk_summary_clean"] = (
         df_final_display["risk_summary"].fillna("Error").str.title()
@@ -2202,7 +2231,6 @@ if page == "📊 Auction Insights":
     counts = df_final_display["risk_summary_clean"].value_counts().to_dict()
 
     # 🔘 Display summary buttons
-    st.subheader("Risk Summary Counts")
     c1, c2, c3, c4 = st.columns(4)
     clicked = None
     with c1:
@@ -2226,7 +2254,7 @@ if page == "📊 Auction Insights":
 
     st.markdown("---")
 
-    # 🎯 Auction ID selection for AI Analysis
+    # ---------------- AI Analysis Section ---------------- #
     st.subheader("Auction AI Analysis")
 
     auction_ids = df_ibbi['auction_id'].dropna().unique()
@@ -2249,7 +2277,6 @@ if page == "📊 Auction Insights":
                     else:
                         st.error("Analysis Failed")
                         st.exception(Exception(insights_result.get("message", "")))
-
 
 #######################################################################################################################################################################################################
 #####################################################################################################################################################################################################
@@ -2486,6 +2513,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
