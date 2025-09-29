@@ -1488,6 +1488,8 @@ def normalize_keys(obj):
 
 def display_insights(insights: dict):
     st.success("Insights generated successfully!")
+    
+    # Get error reason if available
     error_reason = insights.get("details") or insights.get("error") or "Reason not available"
 
     source = str(insights.get("source") or insights.get("auction_platform") or "").lower()
@@ -1527,27 +1529,36 @@ def display_insights(insights: dict):
                 st.markdown("---")
 
     # Common ranking
-    # Common ranking
-ranking = insights.get("ranking", {})
+    ranking = insights.get("ranking", {})
 
-if ranking:  # If ranking exists, display normally
-    st.markdown("### Auction Ranking")
-    st.markdown(f"**Legal Compliance Score:** {ranking.get('legal_compliance_score', f'Missing – {error_reason}')}")
-    st.markdown(f"**Economical Score:** {ranking.get('economical_score', f'Missing – {error_reason}')}")
-    st.markdown(f"**Market Trends Score:** {ranking.get('market_trends_score', f'Missing – {error_reason}')}")
-    st.markdown(f"**Final Score:** {ranking.get('final_score', f'Missing – {error_reason}')}")
-    st.markdown(f"**Risk Summary:** {ranking.get('risk_summary', f'Missing – {error_reason}')}")
-    
-    references = ranking.get("reference_summary") or insights.get("referance summary")
-    if references:
-        st.markdown("**Reference Summary:**")
-        if isinstance(references, str):
-            st.markdown(references.replace("\n", " "))
-        elif isinstance(references, list):
-            for ref in references:
-                st.markdown(f"- {str(ref)}")
-    else:
+    if ranking:  # If ranking exists, display normally
+        st.markdown("### Auction Ranking")
+        st.markdown(f"**Legal Compliance Score:** {ranking.get('legal_compliance_score', f'Missing – {error_reason}')}")
+        st.markdown(f"**Economical Score:** {ranking.get('economical_score', f'Missing – {error_reason}')}")
+        st.markdown(f"**Market Trends Score:** {ranking.get('market_trends_score', f'Missing – {error_reason}')}")
+        st.markdown(f"**Final Score:** {ranking.get('final_score', f'Missing – {error_reason}')}")
+        st.markdown(f"**Risk Summary:** {ranking.get('risk_summary', f'Missing – {error_reason}')}")
+        
+        references = ranking.get("reference_summary") or insights.get("referance summary")
+        if references:
+            st.markdown("**Reference Summary:**")
+            if isinstance(references, str):
+                st.markdown(references.replace("\n", " "))
+            elif isinstance(references, list):
+                for ref in references:
+                    st.markdown(f"- {str(ref)}")
+        else:
+            st.markdown(f"**Reference Summary:** Missing – {error_reason}")
+
+    else:  # ranking missing entirely -> show all fields as missing with reason
+        st.markdown("### Auction Ranking")
+        st.markdown(f"**Legal Compliance Score:** Missing – {error_reason}")
+        st.markdown(f"**Economical Score:** Missing – {error_reason}")
+        st.markdown(f"**Market Trends Score:** Missing – {error_reason}")
+        st.markdown(f"**Final Score:** Missing – {error_reason}")
+        st.markdown(f"**Risk Summary:** Missing – {error_reason}")
         st.markdown(f"**Reference Summary:** Missing – {error_reason}")
+
 
 else:  # ranking missing entirely -> show all fields as missing with reason
     st.markdown("### Auction Ranking")
@@ -2557,6 +2568,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
