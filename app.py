@@ -1559,27 +1559,30 @@ RISK_CACHE_FILE = os.path.join(RISK_CACHE_DIR, 'risk_cache.sqlite')
 RISK_CACHE_TTL_DAYS = 1
 
 def load_risk_cache():
-    """Loads the risk cache from the SQLite database."""
+    """Loads the risk cache from the SQLite database and cleans old statuses."""
     # 🚨 CHANGE 2: Use SQLite
     if not os.path.exists(RISK_CACHE_FILE):
         print(f"Cache file not found at: {RISK_CACHE_FILE}")
         # Return an empty DataFrame with the correct columns
-        return pd.DataFrame(columns=['auction_id', 'risk_summary', 'last_processed_at'])
+        return pd.DataFrame(columns=['auction_id', 'risk_summary', 'last_processed_at', 'insights_json'])
     
     try:
         # Use SQLAlchemy engine for connecting to SQLite file
         from sqlalchemy import create_engine
         engine = create_engine(f'sqlite:///{RISK_CACHE_FILE}')
         df_cache = pd.read_sql('SELECT * FROM risk_insights', engine)
+        
+        # 🎯 ALIGNMENT CHANGE: Clean up old/unknown statuses to "Error" on load
+        df_cache['risk_summary'] = df_cache['risk_summary'].replace(
+            ['Not Processed', 'Unknown', None, ''], 'Error'
+        ).fillna('Error') # Ensure any NaN risk_summary becomes Error
+        
         print(f"Cache Size: {len(df_cache)} rows.")
         return df_cache
     except Exception as e:
         print(f"!!! ❌ FATAL CACHE LOAD ERROR: {e}")
         # Return empty on error
-        return pd.DataFrame(columns=['auction_id', 'risk_summary', 'last_processed_at'])
-
-import os
-import pandas as pd
+        return pd.DataFrame(columns=['auction_id', 'risk_summary', 'last_processed_at', 'insights_json'])
 
 def save_risk_cache(df_cache):
     """Saves the risk cache to the SQLite database."""
@@ -2051,12 +2054,11 @@ def process_single_auction_row(auction_row, llm):
         result_row["insights_json"] = json.dumps({"error": str(e)}, default=str)
         print(f"❌ Exception for {auction_id}: {e}")
 
-    # 🔧 Ensure risk_summary never stays "Unknown"
+    # 🔧 FINAL ALIGNMENT: Ensure risk_summary never stays "Unknown" or "Not Processed"
     if result_row["risk_summary"] in ["Unknown", "", None]:
-        result_row["risk_summary"] = "Not Processed"
+        result_row["risk_summary"] = "Error" # <-- Corrected to "Error"
+        
     return result_row
-
-# Assuming your llm and initialization functions are defined earlier
 
 def process_and_cache_auction(auction_row, llm, force_refresh=False):
     # 1. Load the current cache 
@@ -2071,8 +2073,10 @@ def process_and_cache_auction(auction_row, llm, force_refresh=False):
     # Default: assume we need to process
     needs_processing = True
     
+    # --- Logic for loading from cache ---
     if not cached_row.empty and not force_refresh:
-        current_status = cached_row.iloc[0].get('risk_summary', 'Not Processed').title()
+        # NOTE: We must check for "Error" here as "Not Processed" is being removed
+        current_status = cached_row.iloc[0].get('risk_summary', 'Error').title() 
         last_processed_at = pd.to_datetime(cached_row.iloc[0].get('last_processed_at'), errors='coerce')
         
         # Check for expired/needs retry
@@ -2081,18 +2085,43 @@ def process_and_cache_auction(auction_row, llm, force_refresh=False):
             and (datetime.utcnow() - last_processed_at.to_pydatetime()).days >= RISK_CACHE_TTL_DAYS
         )
         
-        if current_status not in ["Not Processed", "Error"] and not is_expired:
+        # Only return cache if status is good AND not expired
+        if current_status not in ["Error"] and not is_expired:
             print(f"🔄 Loaded from cache: {auction_id}")
             # Return the existing data if it's still valid
             return cached_row.iloc[0].to_dict()
         
-        # If we reach here, it needs processing (Error, Not Processed, or Expired)
+        # If we reach here, it needs processing (Error or Expired)
         needs_processing = True
+    # --- End Logic for loading from cache ---
+    
     
     if needs_processing:
-        # 3. Process the auction row
-        print(f"🚀 Processing auction: {auction_id}")
-        result_row = process_single_auction_row(auction_row, llm)
+        
+        # 🎯 START OF INTERNAL TRY/EXCEPT FOR RESILIENCE 🎯
+        try:
+            # 3. Process the auction row
+            print(f"🚀 Processing auction: {auction_id}")
+            # This is the line that sometimes crashes
+            result_row = process_single_auction_row(auction_row, llm)
+            
+        except Exception as e:
+            # 🎯 If processing crashes, create an Error status row
+            error_message = f"Processing failed: {type(e).__name__} - {str(e)}"
+            print(f"!!! ❌ CRITICAL ERROR for ID {auction_id}: {error_message}")
+            
+            # Create an error row
+            result_row = {
+                "auction_id": auction_id,
+                "risk_summary": "Error",
+                "last_processed_at": datetime.utcnow().isoformat(),
+                "insights_json": json.dumps({"error": error_message})
+            }
+        # 🎯 END OF INTERNAL TRY/EXCEPT 🎯
+
+        
+        # Regardless of success or failure (caught in the except block), 
+        # we now have a valid 'result_row' to cache.
         df_new_row = pd.DataFrame([result_row])  # Convert the result to a DataFrame
         
         # 4. Update the Cache (Crucial Step)
@@ -2105,11 +2134,11 @@ def process_and_cache_auction(auction_row, llm, force_refresh=False):
         # 5. Save the full, updated cache
         save_risk_cache(df_updated_cache)
         
+        # Return the processed/error result
         return result_row
     
     # Fallback return (shouldn't be reached if logic is perfect, but safe to have)
     return auction_row.to_dict()
-
 
 
 # AI Anaysis Page
@@ -2186,67 +2215,54 @@ elif page == "⚡ Risk Insights":
             df_ibbi[["auction_id"]], df_cache, on="auction_id", how="left"
         )
 
-        # Fill any missing risk summaries from the cache with "Not Processed"
+        # Fill any missing risk summaries from the cache with "Error" (No more "Not Processed")
         df_merged_for_display["risk_summary_clean"] = (
             df_merged_for_display["risk_summary"]
-            .fillna("Not Processed")
+            .fillna("Error") # All uncached or failed become 'Error'
             .str.title()
         )
 
         # Refresh button
         if st.button("Refresh Risk Insights"):
-            if df_ibbi.empty:
-                st.warning("No auctions to process with EMD date today or in future.")
-            else:
-                llm = initialize_llm()
-                print(f"*** DEBUG START: Processing run for {len(df_ibbi)} auctions. ***")
-                progress = st.progress(0)
-                processed_count = 0
-                total_to_process = len(df_ibbi)
+            with st.spinner("Processing auctions for risk insights..."):
+                if df_ibbi.empty:
+                    st.warning("No auctions to process with EMD date today or in future.")
+                else:
+                    llm = initialize_llm()
+                    print(f"*** DEBUG START: Processing run for {len(df_ibbi)} auctions. ***")
+                    progress = st.progress(0)
+                    processed_count = 0
+                    total_to_process = len(df_ibbi)
 
-                # Iterate over all live auctions
-                for i, (_, row) in enumerate(df_ibbi.iterrows()):
+                    # Iterate over all live auctions
+                    # 🚀 The external try/except is REMOVED! 🚀
+                    for i, (_, row) in enumerate(df_ibbi.iterrows()):
 
-                    # --- START OF CRASH-REVEALING TRY/EXCEPT BLOCK ---
-                    auction_id = "UNKNOWN_ID_PRE_CRASH" # Default in case row access fails
-                    
-                    try:
-                        auction_id = row['auction_id'] # Attempt to get the ID
-                        
-                        # 📢 LOGGING START: Output the ID before processing starts
-                        print(f"*** DEBUG START: ID: {auction_id} (Iteration {i+1} of {total_to_process}) ***")
+                        auction_id = row['auction_id'] # ID is safe here
 
-                        # 🚨 This is the line that crashes for the 17th ID
+                        print(f"\n*** DEBUG START: ID: {auction_id} (Iteration {i+1} of {total_to_process}) ***")
+
+                        # 🚨 Call the fully resilient backend function
+                        # All failures (even fatal ones) are now caught and logged as "Error" inside this function.
                         processed_row = process_and_cache_auction(row, llm, force_refresh=True)
 
-                        # Count how many were actually processed
+                        # Count how many were actually processed (not loaded from cache)
                         if "Loaded from cache" not in processed_row.get("risk_summary", ""):
                             processed_count += 1
                         
-                        # 📢 LOGGING END: Output the result status
                         summary = processed_row.get("risk_summary", "UNKNOWN_ERROR_IN_PROCESS_FUNC")
                         print(f"*** DEBUG END: ID {auction_id} finished with status: {summary} ***")
-                        
-                    except Exception as e:
-                        # 🎯 CRITICAL: This catches the fatal crash on the 17th ID
-                        print(f"\n\n*** FATAL LOOP CRASH DETECTED ON ID {auction_id} (Iteration {i+1}) ***")
-                        print(f"*** ACTUAL CRASHING ERROR: {type(e).__name__} - {str(e)} ***")
-                        
-                        # Stop the loop immediately after logging the error
-                        break
-                    # --- END OF CRASH-REVEALING TRY/EXCEPT BLOCK ---
 
+                        progress.progress(int((i + 1) / total_to_process * 100))
 
-                    progress.progress(int((i + 1) / total_to_process * 100))
-
-                # After the loop finishes
-                if processed_count > 0:
-                    st.success(
-                        f"Processing run complete. {processed_count} auctions were analyzed/updated and cache was saved."
-                    )
-                    st.rerun()
-                else:
-                    st.info("No new auctions needed processing or all were loaded from cache.")
+                    # After the loop finishes
+                    if processed_count > 0:
+                        st.success(
+                            f"Processing run complete. {processed_count} auctions were analyzed/updated and cache was saved."
+                        )
+                        st.rerun()
+                    else:
+                        st.info("No new auctions needed processing or all were loaded from cache.")
 
         # Reload the cache after a refresh or for the initial load
         df_cache_for_display = load_risk_cache()
@@ -2256,14 +2272,14 @@ elif page == "⚡ Risk Insights":
             df_ibbi[["auction_id"]], df_cache_for_display, on="auction_id", how="left"
         )
         df_final_display["risk_summary_clean"] = (
-            df_final_display["risk_summary"].fillna("Not Processed").str.title()
+            df_final_display["risk_summary"].fillna("Error").str.title() # All uncached or failed become 'Error'
         )
 
         # 🧮 Summary counts
         counts = df_final_display["risk_summary_clean"].value_counts().to_dict()
 
-        # 🔘 Display summary buttons
-        c1, c2, c3, c4, c5 = st.columns(5)
+        # 🔘 Display summary buttons (4 Columns)
+        c1, c2, c3, c4 = st.columns(4) # <-- Changed from 5 columns
         clicked = None
         with c1:
             if st.button(f"High Risk\n{counts.get('High Risk',0)}"):
@@ -2277,9 +2293,8 @@ elif page == "⚡ Risk Insights":
         with c4:
             if st.button(f"Error\n{counts.get('Error',0)}"):
                 clicked = "Error"
-        with c5:
-            if st.button(f"Not Processed\n{counts.get('Not Processed',0)}"):
-                clicked = "Not Processed"
+        # The 'Not Processed' button (c5) is removed.
+        
 
         # 📋 Display table if clicked
         if clicked:
@@ -2291,6 +2306,7 @@ elif page == "⚡ Risk Insights":
         else:
             st.markdown("**Summary counts:**")
             st.write(counts)
+
 
 #######################################################################################################################################################################################################
 #####################################################################################################################################################################################################
@@ -2527,6 +2543,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
