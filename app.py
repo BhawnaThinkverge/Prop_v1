@@ -1560,14 +1560,6 @@ def display_insights(insights: dict):
         st.markdown(f"**Reference Summary:** Missing – {error_reason}")
 
 
-else:  # ranking missing entirely -> show all fields as missing with reason
-    st.markdown("### Auction Ranking")
-    st.markdown(f"**Legal Compliance Score:** Missing – {error_reason}")
-    st.markdown(f"**Economical Score:** Missing – {error_reason}")
-    st.markdown(f"**Market Trends Score:** Missing – {error_reason}")
-    st.markdown(f"**Final Score:** Missing – {error_reason}")
-    st.markdown(f"**Risk Summary:** Missing – {error_reason}")
-    st.markdown(f"**Reference Summary:** Missing – {error_reason}")
 
 
 @st.cache_resource
@@ -2568,6 +2560,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
