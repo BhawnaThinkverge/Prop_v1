@@ -1527,24 +1527,36 @@ def display_insights(insights: dict):
                 st.markdown("---")
 
     # Common ranking
-    ranking = insights.get("ranking", {})
-    if ranking:
-        st.markdown("### Auction Ranking")
-        st.markdown(f"**Legal Compliance Score:** {ranking.get('legal_compliance_score', 0)}")
-        st.markdown(f"**Economical Score:** {ranking.get('economical_score', 0)}")
-        st.markdown(f"**Market Trends Score:** {ranking.get('market_trends_score', 0)}")
-        st.markdown(f"**Final Score:** {ranking.get('final_score', 0)}")
-        st.markdown(f"**Risk Summary:** {ranking.get('risk_summary', '')}")
-        references = ranking.get("reference_summary") or insights.get("referance summary")
-        if references:
-            st.markdown("**Reference Summary:**")
-            if isinstance(references, str):
-                st.markdown(references.replace("\n", " "))
-            elif isinstance(references, list):
-                for ref in references:
-                    st.markdown(f"- {str(ref)}")
-        else:
-            st.markdown(f"**Reference Summary:** Missing – {error_reason}")
+    # Common ranking
+ranking = insights.get("ranking", {})
+
+if ranking:  # If ranking exists, display normally
+    st.markdown("### Auction Ranking")
+    st.markdown(f"**Legal Compliance Score:** {ranking.get('legal_compliance_score', f'Missing – {error_reason}')}")
+    st.markdown(f"**Economical Score:** {ranking.get('economical_score', f'Missing – {error_reason}')}")
+    st.markdown(f"**Market Trends Score:** {ranking.get('market_trends_score', f'Missing – {error_reason}')}")
+    st.markdown(f"**Final Score:** {ranking.get('final_score', f'Missing – {error_reason}')}")
+    st.markdown(f"**Risk Summary:** {ranking.get('risk_summary', f'Missing – {error_reason}')}")
+    
+    references = ranking.get("reference_summary") or insights.get("referance summary")
+    if references:
+        st.markdown("**Reference Summary:**")
+        if isinstance(references, str):
+            st.markdown(references.replace("\n", " "))
+        elif isinstance(references, list):
+            for ref in references:
+                st.markdown(f"- {str(ref)}")
+    else:
+        st.markdown(f"**Reference Summary:** Missing – {error_reason}")
+
+else:  # ranking missing entirely -> show all fields as missing with reason
+    st.markdown("### Auction Ranking")
+    st.markdown(f"**Legal Compliance Score:** Missing – {error_reason}")
+    st.markdown(f"**Economical Score:** Missing – {error_reason}")
+    st.markdown(f"**Market Trends Score:** Missing – {error_reason}")
+    st.markdown(f"**Final Score:** Missing – {error_reason}")
+    st.markdown(f"**Risk Summary:** Missing – {error_reason}")
+    st.markdown(f"**Reference Summary:** Missing – {error_reason}")
 
 
 @st.cache_resource
@@ -2545,6 +2557,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
