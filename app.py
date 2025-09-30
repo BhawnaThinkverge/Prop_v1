@@ -106,7 +106,7 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigate to:",
-    ["🏠 Dashboard", "🔍 Search Analytics", "📊 Basic Analytics","📈 KPI Analytics","📈 KPI Analytics 2","📊 Auction Insights" , "📚 PBN FAQs"],
+    ["🏠 Dashboard", "🔍 Search Analytics", "📊 Basic Analytics","📈 KPI Analytics","📊 Auction Insights" , "📚 PBN FAQs"],
     index=0
 )
 
@@ -627,322 +627,9 @@ elif page == "📊 Basic Analytics" and df is not None:
 
 # KPI Analytics Page
 elif page == "📈 KPI Analytics" and df is not None:
-    st.markdown('<div class="main-header">📈 KPI Analytics</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">📈 KPI Analytics Dashboard</div>', unsafe_allow_html=True)
 
-    # Custom CSS for hoverable tooltips and card styling
-    st.markdown("""
-        <style>
-            .metric-tile {
-                background-color: #ffffff;
-                padding: 1.5rem;
-                border-radius: 8px;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                position: relative;
-                transition: transform 0.2s;
-            }
-            .metric-tile:hover {
-                transform: scale(1.05);
-            }
-            .tooltip {
-                visibility: hidden;
-                opacity: 0;
-                transition: opacity 0.3s;
-                position: absolute;
-                z-index: 10;
-                background-color: #1f2937;
-                color: white;
-                padding: 8px;
-                border-radius: 4px;
-                font-size: 0.9rem;
-                max-width: 300px;
-                bottom: 100%;
-                left: 50%;
-                transform: translateX(-50%);
-            }
-            .metric-tile:hover .tooltip {
-                visibility: visible;
-                opacity: 1;
-            }
-            .main-header {
-                font-size: 2rem;
-                font-weight: bold;
-                text-align: center;
-                margin-bottom: 2rem;
-                color: #1f2937;
-            }
-            .section-header {
-                font-size: 1.5rem;
-                font-weight: 600;
-                margin-top: 2rem;
-                margin-bottom: 1rem;
-                color: #1f2937;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Filter for active auctions
-    active_df = df[df['days_until_submission'] >= 0]
-    active_df1 = active_df[active_df["Source"] != "Albion"]
-
-    if not active_df.empty:
-        # Existing KPIs
-        total_auctions = len(active_df1)
-        compliant_auctions = len(active_df1[active_df1['Notice URL'] != 'URL 2_if available'])
-        notice_compliance_rate = (compliant_auctions / total_auctions * 100) if total_auctions > 0 else 0
-
-        active_df1['timeliness_days'] = (active_df1['Auction Date_dt'] - active_df['Notice_date']).dt.days
-        min_days = active_df1['timeliness_days'].min()
-        median_days = active_df1['timeliness_days'].median()
-        p95_days = active_df1['timeliness_days'].quantile(0.95)
-
-        error_rate = (active_df.isna().any(axis=1).sum() / len(active_df)) * 100
-
-        # Hardcoded values for new KPIs (realistic random values)
-        title_artefact_completeness = 87.3
-        litigation_stay_rate = 4.8
-        appeal_challenge_rate = 2.1
-        grievance_closure_sla = 95.7
-        audit_trail_completeness = 98.2
-        reserve_accuracy_error = 7.4
-        valuation_alignment = 89.6
-        bid_depth = "Avg: 3.2, P50: 3, P90: 5"
-        reserve_hit_rate = 78.9
-        price_discovery_spread = 0.15
-        elasticity_participation = 0.08
-        repossession_auction_tat = "Min: 45, Median: 62, P95: 90"
-        re_auction_rate = 12.5
-        cancellation_no_bid_rate = 8.3
-        recovery_ratio = 75.2
-        recovery_velocity = "₹1.2M per day / ₹108M per quarter"
-        cost_to_recover = 3.7
-        re_auction_cost_drag = "Extra ₹0.05 per ₹ recovered"
-
-        # Display Legal & Compliance KPIs
-        st.markdown('<div class="section-header">Legal & Compliance KPIs</div>', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Notice Compliance Rate</h3>
-                    <p>{notice_compliance_rate:.1f}%</p>
-                    <div class="tooltip">% auctions whose statutory notice/ publication/ possession steps meet applicable norms. Definition: compliant_auctions ÷ total_auctions.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col2:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Disclosure Timeliness (Days)</h3>
-                    <p>Min: {min_days}, Median: {median_days}, P95: {p95_days}</p>
-                    <div class="tooltip">auction_date − notice_publish_date</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col3:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Title/Artefact Completeness Index</h3>
-                    <p>{title_artefact_completeness}</p>
-                    <div class="tooltip">Weighted score for presence & quality of deed extracts, encumbrance certs, site photos, geo-tags, reserves, terms. Definition: Σ(weight_i × present_i ÷ required_i).</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        col4, col5, col6 = st.columns(3)
-        with col4:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Litigation/Stay Incidence Rate</h3>
-                    <p>{litigation_stay_rate}%</p>
-                    <div class="tooltip">% auctions affected by court/DRT/DRAT stays or material disputes. Definition: stayed_listings ÷ total_listings.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col5:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Appeal/Challenge Rate (post-sale)</h3>
-                    <p>{appeal_challenge_rate}%</p>
-                    <div class="tooltip">% concluded sales that face legal challenges within X days. Definition: challenged_sales ÷ concluded_sales.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col6:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Grievance Closure SLA %</h3>
-                    <p>{grievance_closure_sla}%</p>
-                    <div class="tooltip">% grievances resolved within policy SLA. Definition: closed_within_SLA ÷ total_grievances.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        col7, col8, _ = st.columns(3)
-        with col7:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Audit-Trail Completeness</h3>
-                    <p>{audit_trail_completeness}%</p>
-                    <div class="tooltip">% auctions with full system logs & decision artifacts (who/what/when). Definition: auctions_with_full_logs ÷ total_auctions.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col8:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Data Quality Error Rate</h3>
-                    <p>{error_rate:.1f}%</p>
-                    <div class="tooltip">Percentage of records with missing or invalid data.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        # Display Pricing & Market-Efficiency KPIs
-        st.markdown('<div class="section-header">Pricing & Market-Efficiency KPIs</div>', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Reserve Accuracy Error %</h3>
-                    <p>{reserve_accuracy_error}%</p>
-                    <div class="tooltip">How close reserve was to market outcome. Definition: |hammer − reserve| ÷ reserve.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col2:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Valuation Alignment % (Independent/Circle)</h3>
-                    <p>{valuation_alignment}%</p>
-                    <div class="tooltip">Sanity check vs independent valuation or govt circle rate. Definition: hammer ÷ benchmark_value.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col3:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Bid Depth</h3>
-                    <p>{bid_depth}</p>
-                    <div class="tooltip">Avg number of bids per lot; p50/p90 distribution.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        col4, col5, col6 = st.columns(3)
-        with col4:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Reserve Hit Rate</h3>
-                    <p>{reserve_hit_rate}%</p>
-                    <div class="tooltip">% auctions where bidding crossed reserve. Definition: crossed_reserve ÷ total_auctions.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col5:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Price Discovery Spread</h3>
-                    <p>{price_discovery_spread}</p>
-                    <div class="tooltip">(p90 bid − p10 bid) ÷ reserve (volatility proxy).</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col6:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Elasticity to Participation</h3>
-                    <p>{elasticity_participation}</p>
-                    <div class="tooltip">∆hammer_uplift per additional qualified bidder (regression slope).</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        # Display Time & Process KPIs
-        st.markdown('<div class="section-header">Time & Process KPIs</div>', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Repossession→Auction TAT (days)</h3>
-                    <p>{repossession_auction_tat}</p>
-                    <div class="tooltip">End-to-end pipeline time from repossession completed date.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col2:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Re-Auction Rate</h3>
-                    <p>{re_auction_rate}%</p>
-                    <div class="tooltip">% lots needing re-listing. Definition: reauctioned_listings ÷ total_listings.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col3:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Cancellation/No-Bid Rate</h3>
-                    <p>{cancellation_no_bid_rate}%</p>
-                    <div class="tooltip">% auctions cancelled or with zero qualifying bids.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        # Display Financial Recovery KPIs
-        st.markdown('<div class="section-header">Financial Recovery KPIs (business impact)</div>', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Recovery Ratio vs Outstanding</h3>
-                    <p>{recovery_ratio}%</p>
-                    <div class="tooltip">₹ hammer ÷ ₹ book outstanding (or security value).</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col2:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Recovery Velocity</h3>
-                    <p>{recovery_velocity}</p>
-                    <div class="tooltip">₹ recovered per day/quarter.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col3:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Cost-to-Recover %</h3>
-                    <p>{cost_to_recover}%</p>
-                    <div class="tooltip">(notices, hosting, facilitation, legal) ÷ proceeds.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        col4, _, _ = st.columns(3)
-        with col4:
-            st.markdown(f"""
-                <div class="metric-tile">
-                    <h3>Re-Auction Cost Drag</h3>
-                    <p>{re_auction_cost_drag}</p>
-                    <div class="tooltip">Extra cost & time due to re-auctions per ₹ recovered.</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        st.write(f"**Active Auctions Analyzed:** {len(active_df)}")
-    else:
-        st.info("No active auctions available for KPI calculation.")
-
-    st.markdown("---")
-
-
-
-
-#####################################################################################################################################################################
-####################################################################################################################################################################
-
-# KPI Analytics Page 2
-elif page == "📈 KPI Analytics 2" and df is not None:
-    st.markdown('<div class="main-header">KPI Analytics Dashboard</div>', unsafe_allow_html=True)
-
-    # Fancy, modern CSS with a bluish color scheme and glassmorphism
+    # Fancy, modern CSS with glassmorphism and different professional classy colors for each category
     st.markdown("""
         <style>
             .metric-tile {
@@ -953,8 +640,43 @@ elif page == "📈 KPI Analytics 2" and df is not None:
                 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
                 position: relative;
                 transition: transform 0.4s ease, box-shadow 0.4s ease;
-                border: 1px solid rgba(59, 130, 246, 0.2); /* Blue border */
                 margin-bottom: 1.5rem;
+            }
+            .metric-tile.legal {
+                background: rgba(59, 130, 246, 0.1); /* Professional blue for Legal & Compliance */
+                border: 1px solid rgba(59, 130, 246, 0.2);
+            }
+            .metric-tile.pricing {
+                background: rgba(34, 197, 94, 0.1); /* Classy green for Pricing & Market-Efficiency */
+                border: 1px solid rgba(34, 197, 94, 0.2);
+            }
+            .metric-tile.time {
+                background: rgba(234, 179, 8, 0.1); /* Soft yellow-orange for Time & Process */
+                border: 1px solid rgba(234, 179, 8, 0.2);
+            }
+            .metric-tile.financial {
+                background: rgba(168, 85, 247, 0.1); /* Elegant purple for Financial Recovery */
+                border: 1px solid rgba(168, 85, 247, 0.2);
+            }
+            .metric-tile.banks {
+                background: rgba(30, 64, 175, 0.1); /* Deep navy for Banks & Organizations */
+                border: 1px solid rgba(30, 64, 175, 0.2);
+            }
+            .metric-tile.liquidators {
+                background: rgba(20, 184, 166, 0.1); /* Sophisticated teal for Liquidators */
+                border: 1px solid rgba(20, 184, 166, 0.2);
+            }
+            .metric-tile.group {
+                background: rgba(99, 102, 241, 0.1); /* Refined indigo for Group Liquidators & Collaterals */
+                border: 1px solid rgba(99, 102, 241, 0.2);
+            }
+            .metric-tile.govt {
+                background: rgba(107, 114, 128, 0.1); /* Neutral gray for Government Agencies */
+                border: 1px solid rgba(107, 114, 128, 0.2);
+            }
+            .metric-tile.regulatory {
+                background: rgba(190, 18, 60, 0.1); /* Subtle burgundy red for Regulatory Bodies */
+                border: 1px solid rgba(190, 18, 60, 0.2);
             }
             .metric-tile:hover {
                 transform: translateY(-8px);
@@ -1020,7 +742,52 @@ elif page == "📈 KPI Analytics 2" and df is not None:
         </style>
     """, unsafe_allow_html=True)
 
-    # Hardcoded values for all KPIs (unchanged)
+    # Filter for active auctions
+    active_df = df[df['days_until_submission'] >= 0]
+    active_df1 = active_df[active_df["Source"] != "Albion"]
+
+    if not active_df.empty:
+        # Existing KPIs
+        total_auctions = len(active_df1)
+        compliant_auctions = len(active_df1[active_df1['Notice URL'] != 'URL 2_if available'])
+        notice_compliance_rate = (compliant_auctions / total_auctions * 100) if total_auctions > 0 else 0
+
+        active_df1['timeliness_days'] = (active_df1['Auction Date_dt'] - active_df1['Notice_date']).dt.days  # Fixed typo: use active_df1 for Notice_date
+        min_days = active_df1['timeliness_days'].min()
+        median_days = active_df1['timeliness_days'].median()
+        p95_days = active_df1['timeliness_days'].quantile(0.95)
+
+        error_rate = (active_df.isna().any(axis=1).sum() / len(active_df)) * 100
+    else:
+        total_auctions = 0
+        compliant_auctions = 0
+        notice_compliance_rate = 0
+        min_days = 'N/A'
+        median_days = 'N/A'
+        p95_days = 'N/A'
+        error_rate = 0
+
+    # Hardcoded values for KPIs from first page (realistic random values)
+    title_artefact_completeness = 87.3
+    litigation_stay_rate = 4.8
+    appeal_challenge_rate = 2.1
+    grievance_closure_sla = 95.7
+    audit_trail_completeness = 98.2
+    reserve_accuracy_error = 7.4
+    valuation_alignment = 89.6
+    bid_depth = "Avg: 3.2, P50: 3, P90: 5"
+    reserve_hit_rate = 78.9
+    price_discovery_spread = 0.15
+    elasticity_participation = 0.08
+    repossession_auction_tat = "Min: 45, Median: 62, P95: 90"
+    re_auction_rate = 12.5
+    cancellation_no_bid_rate = 8.3
+    recovery_ratio = 75.2
+    recovery_velocity = "₹1.2M per day / ₹108M per quarter"
+    cost_to_recover = 3.7
+    re_auction_cost_drag = "Extra ₹0.05 per ₹ recovered"
+
+    # Hardcoded values for all KPIs from second page (unchanged)
     bank_loan_recovery_rate = 82.5
     bank_portfolio_health_index = 91.2
     bank_default_prediction_accuracy = 88.7
@@ -1066,13 +833,222 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     reg_stakeholder_compliance_training = 88.5
     reg_penalty_recovery_rate = 79.3
 
+    # Display Legal & Compliance KPIs
+    st.markdown('<div class="section-header">Legal & Compliance KPIs</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile legal">
+                <h3>Notice Compliance Rate</h3>
+                <p>{notice_compliance_rate:.1f}%</p>
+                <div class="tooltip">% auctions whose statutory notice/ publication/ possession steps meet applicable norms. Definition: compliant_auctions ÷ total_auctions.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile legal">
+                <h3>Disclosure Timeliness (Days)</h3>
+                <p>Min: {min_days}, Median: {median_days}, P95: {p95_days}</p>
+                <div class="tooltip">auction_date − notice_publish_date</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile legal">
+                <h3>Title/Artefact Completeness Index</h3>
+                <p>{title_artefact_completeness}</p>
+                <div class="tooltip">Weighted score for presence & quality of deed extracts, encumbrance certs, site photos, geo-tags, reserves, terms. Definition: Σ(weight_i × present_i ÷ required_i).</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-tile legal">
+                <h3>Litigation/Stay Incidence Rate</h3>
+                <p>{litigation_stay_rate}%</p>
+                <div class="tooltip">% auctions affected by court/DRT/DRAT stays or material disputes. Definition: stayed_listings ÷ total_listings.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown(f"""
+            <div class="metric-tile legal">
+                <h3>Appeal/Challenge Rate (post-sale)</h3>
+                <p>{appeal_challenge_rate}%</p>
+                <div class="tooltip">% concluded sales that face legal challenges within X days. Definition: challenged_sales ÷ concluded_sales.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col6:
+        st.markdown(f"""
+            <div class="metric-tile legal">
+                <h3>Grievance Closure SLA %</h3>
+                <p>{grievance_closure_sla}%</p>
+                <div class="tooltip">% grievances resolved within policy SLA. Definition: closed_within_SLA ÷ total_grievances.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col7, col8, _ = st.columns(3)
+    with col7:
+        st.markdown(f"""
+            <div class="metric-tile legal">
+                <h3>Audit-Trail Completeness</h3>
+                <p>{audit_trail_completeness}%</p>
+                <div class="tooltip">% auctions with full system logs & decision artifacts (who/what/when). Definition: auctions_with_full_logs ÷ total_auctions.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col8:
+        st.markdown(f"""
+            <div class="metric-tile legal">
+                <h3>Data Quality Error Rate</h3>
+                <p>{error_rate:.1f}%</p>
+                <div class="tooltip">Percentage of records with missing or invalid data.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Display Pricing & Market-Efficiency KPIs
+    st.markdown('<div class="section-header">Pricing & Market-Efficiency KPIs</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile pricing">
+                <h3>Reserve Accuracy Error %</h3>
+                <p>{reserve_accuracy_error}%</p>
+                <div class="tooltip">How close reserve was to market outcome. Definition: |hammer − reserve| ÷ reserve.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile pricing">
+                <h3>Valuation Alignment % (Independent/Circle)</h3>
+                <p>{valuation_alignment}%</p>
+                <div class="tooltip">Sanity check vs independent valuation or govt circle rate. Definition: hammer ÷ benchmark_value.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile pricing">
+                <h3>Bid Depth</h3>
+                <p>{bid_depth}</p>
+                <div class="tooltip">Avg number of bids per lot; p50/p90 distribution.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-tile pricing">
+                <h3>Reserve Hit Rate</h3>
+                <p>{reserve_hit_rate}%</p>
+                <div class="tooltip">% auctions where bidding crossed reserve. Definition: crossed_reserve ÷ total_auctions.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown(f"""
+            <div class="metric-tile pricing">
+                <h3>Price Discovery Spread</h3>
+                <p>{price_discovery_spread}</p>
+                <div class="tooltip">(p90 bid − p10 bid) ÷ reserve (volatility proxy).</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col6:
+        st.markdown(f"""
+            <div class="metric-tile pricing">
+                <h3>Elasticity to Participation</h3>
+                <p>{elasticity_participation}</p>
+                <div class="tooltip">∆hammer_uplift per additional qualified bidder (regression slope).</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Display Time & Process KPIs
+    st.markdown('<div class="section-header">Time & Process KPIs</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile time">
+                <h3>Repossession→Auction TAT (days)</h3>
+                <p>{repossession_auction_tat}</p>
+                <div class="tooltip">End-to-end pipeline time from repossession completed date.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile time">
+                <h3>Re-Auction Rate</h3>
+                <p>{re_auction_rate}%</p>
+                <div class="tooltip">% lots needing re-listing. Definition: reauctioned_listings ÷ total_listings.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile time">
+                <h3>Cancellation/No-Bid Rate</h3>
+                <p>{cancellation_no_bid_rate}%</p>
+                <div class="tooltip">% auctions cancelled or with zero qualifying bids.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Display Financial Recovery KPIs
+    st.markdown('<div class="section-header">Financial Recovery KPIs (business impact)</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"""
+            <div class="metric-tile financial">
+                <h3>Recovery Ratio vs Outstanding</h3>
+                <p>{recovery_ratio}%</p>
+                <div class="tooltip">₹ hammer ÷ ₹ book outstanding (or security value).</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+            <div class="metric-tile financial">
+                <h3>Recovery Velocity</h3>
+                <p>{recovery_velocity}</p>
+                <div class="tooltip">₹ recovered per day/quarter.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+            <div class="metric-tile financial">
+                <h3>Cost-to-Recover %</h3>
+                <p>{cost_to_recover}%</p>
+                <div class="tooltip">(notices, hosting, facilitation, legal) ÷ proceeds.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    col4, _, _ = st.columns(3)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-tile financial">
+                <h3>Re-Auction Cost Drag</h3>
+                <p>{re_auction_cost_drag}</p>
+                <div class="tooltip">Extra cost & time due to re-auctions per ₹ recovered.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
     # Display Banks/Organizations KPIs
     st.markdown('<div class="section-header">Banks & Organizations</div>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
 
     with col1:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile banks">
                 <h3>Loan Recovery Rate</h3>
                 <p>{bank_loan_recovery_rate}%</p>
                 <div class="tooltip">Percentage of outstanding loans recovered through auctions and processes. Definition: recovered_amount ÷ outstanding_amount.</div>
@@ -1081,7 +1057,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col2:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile banks">
                 <h3>Portfolio Health Index</h3>
                 <p>{bank_portfolio_health_index}%</p>
                 <div class="tooltip">Overall health score of loan portfolio based on defaults and recoveries.</div>
@@ -1090,7 +1066,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col3:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile banks">
                 <h3>Default Prediction Accuracy</h3>
                 <p>{bank_default_prediction_accuracy}%</p>
                 <div class="tooltip">Accuracy of models predicting loan defaults.</div>
@@ -1100,7 +1076,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col4, col5, col6 = st.columns(3)
     with col4:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile banks">
                 <h3>Customer Satisfaction Score</h3>
                 <p>{bank_customer_satisfaction_score}/5</p>
                 <div class="tooltip">Average satisfaction score from borrowers and bidders.</div>
@@ -1109,7 +1085,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col5:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile banks">
                 <h3>Operational Efficiency</h3>
                 <p>{bank_operational_efficiency}%</p>
                 <div class="tooltip">Efficiency in handling auction operations.</div>
@@ -1118,7 +1094,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col6:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile banks">
                 <h3>Risk Exposure Ratio</h3>
                 <p>{bank_risk_exposure_ratio}%</p>
                 <div class="tooltip">Ratio of exposed risk in the portfolio.</div>
@@ -1128,7 +1104,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col7, col8, _ = st.columns(3)
     with col7:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile banks">
                 <h3>Compliance Audit Score</h3>
                 <p>{bank_compliance_audit_score}%</p>
                 <div class="tooltip">Score from internal and external audits.</div>
@@ -1137,7 +1113,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col8:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile banks">
                 <h3>Asset Liquidation Speed (Days)</h3>
                 <p>{bank_asset_liquidation_speed}</p>
                 <div class="tooltip">Time taken to liquidate assets.</div>
@@ -1150,7 +1126,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col1:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile liquidators">
                 <h3>Asset Realization Rate</h3>
                 <p>{liq_asset_realization_rate}%</p>
                 <div class="tooltip">Percentage of asset value realized through liquidation.</div>
@@ -1159,7 +1135,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col2:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile liquidators">
                 <h3>Liquidation TAT (Days)</h3>
                 <p>{liq_liquidation_tat_days}</p>
                 <div class="tooltip">Turnaround time for liquidation processes.</div>
@@ -1168,7 +1144,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col3:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile liquidators">
                 <h3>Cost to Liquidate (%)</h3>
                 <p>{liq_cost_to_liquidate}%</p>
                 <div class="tooltip">Costs as a percentage of realized value.</div>
@@ -1178,7 +1154,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col4, col5, col6 = st.columns(3)
     with col4:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile liquidators">
                 <h3>Successful Closure Rate</h3>
                 <p>{liq_successful_closure_rate}%</p>
                 <div class="tooltip">Percentage of cases closed successfully.</div>
@@ -1187,7 +1163,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col5:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile liquidators">
                 <h3>Stakeholder Satisfaction</h3>
                 <p>{liq_stakeholder_satisfaction}/5</p>
                 <div class="tooltip">Satisfaction score from involved parties.</div>
@@ -1196,7 +1172,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col6:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile liquidators">
                 <h3>Dispute Resolution Rate</h3>
                 <p>{liq_dispute_resolution_rate}%</p>
                 <div class="tooltip">Percentage of disputes resolved efficiently.</div>
@@ -1206,7 +1182,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col7, col8, _ = st.columns(3)
     with col7:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile liquidators">
                 <h3>Recovery vs Valuation</h3>
                 <p>{liq_recovery_vs_valuation}%</p>
                 <div class="tooltip">Realized recovery against initial valuation.</div>
@@ -1215,7 +1191,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col8:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile liquidators">
                 <h3>Re-Liquidation Rate</h3>
                 <p>{liq_re_liquidation_rate}%</p>
                 <div class="tooltip">Percentage of assets requiring re-liquidation.</div>
@@ -1228,7 +1204,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col1:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile group">
                 <h3>Collateral Coverage Ratio</h3>
                 <p>{group_collateral_coverage_ratio}</p>
                 <div class="tooltip">Ratio of collateral value to outstanding debt.</div>
@@ -1237,7 +1213,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col2:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile group">
                 <h3>Aggregate Recovery</h3>
                 <p>{group_aggregate_recovery}</p>
                 <div class="tooltip">Total recovery across group entities.</div>
@@ -1246,7 +1222,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col3:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile group">
                 <h3>Cross-Collateral Efficiency</h3>
                 <p>{group_cross_collateral_efficiency}%</p>
                 <div class="tooltip">Efficiency in utilizing cross-collaterals.</div>
@@ -1256,7 +1232,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col4, col5, col6 = st.columns(3)
     with col4:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile group">
                 <h3>Risk Pooling Effectiveness</h3>
                 <p>{group_risk_pooling_effectiveness}%</p>
                 <div class="tooltip">Effectiveness of risk distribution in group.</div>
@@ -1265,7 +1241,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col5:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile group">
                 <h3>Liquidator Performance Variance</h3>
                 <p>{group_liquidator_performance_variance}%</p>
                 <div class="tooltip">Variance in performance across group liquidators.</div>
@@ -1274,7 +1250,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col6:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile group">
                 <h3>Collateral Valuation Accuracy</h3>
                 <p>{group_collateral_valuation_accuracy}%</p>
                 <div class="tooltip">Accuracy of group collateral valuations.</div>
@@ -1284,7 +1260,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col7, col8, _ = st.columns(3)
     with col7:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile group">
                 <h3>Multi-Entity Coordination Score</h3>
                 <p>{group_multi_entity_coordination_score}%</p>
                 <div class="tooltip">Score for coordination among group entities.</div>
@@ -1293,7 +1269,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col8:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile group">
                 <h3>Repossession Success Rate</h3>
                 <p>{group_repossession_success_rate}%</p>
                 <div class="tooltip">Percentage of successful repossessions in group.</div>
@@ -1306,7 +1282,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col1:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile govt">
                 <h3>Public Auction Success Rate</h3>
                 <p>{govt_public_auction_success_rate}%</p>
                 <div class="tooltip">Percentage of public auctions successfully completed.</div>
@@ -1315,7 +1291,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col2:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile govt">
                 <h3>Transparency Index</h3>
                 <p>{govt_transparency_index}%</p>
                 <div class="tooltip">Index measuring process transparency.</div>
@@ -1324,7 +1300,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col3:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile govt">
                 <h3>Fund Allocation Efficiency</h3>
                 <p>{govt_fund_allocation_efficiency}%</p>
                 <div class="tooltip">Efficiency in allocating funds for auctions.</div>
@@ -1334,7 +1310,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col4, col5, col6 = st.columns(3)
     with col4:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile govt">
                 <h3>Regulatory Compliance Rate</h3>
                 <p>{govt_regulatory_compliance_rate}%</p>
                 <div class="tooltip">Percentage of compliance with regulations.</div>
@@ -1343,7 +1319,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col5:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile govt">
                 <h3>Dispute Incidence</h3>
                 <p>{govt_dispute_incidence}%</p>
                 <div class="tooltip">Percentage of processes with disputes.</div>
@@ -1352,7 +1328,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col6:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile govt">
                 <h3>Asset Management TAT (Days)</h3>
                 <p>{govt_asset_management_tat}</p>
                 <div class="tooltip">Time for asset management.</div>
@@ -1362,7 +1338,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col7, col8, _ = st.columns(3)
     with col7:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile govt">
                 <h3>Stakeholder Engagement Score</h3>
                 <p>{govt_stakeholder_engagement_score}/5</p>
                 <div class="tooltip">Engagement score with stakeholders.</div>
@@ -1371,7 +1347,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col8:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile govt">
                 <h3>Recovery Impact</h3>
                 <p>{govt_recovery_impact}%</p>
                 <div class="tooltip">Impact on overall recovery.</div>
@@ -1384,7 +1360,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col1:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile regulatory">
                 <h3>Violation Detection Rate</h3>
                 <p>{reg_violation_detection_rate}%</p>
                 <div class="tooltip">Percentage of violations detected promptly.</div>
@@ -1393,7 +1369,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col2:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile regulatory">
                 <h3>Enforcement Action Timeliness (Days)</h3>
                 <p>{reg_enforcement_action_timeliness}</p>
                 <div class="tooltip">Time taken for enforcement actions.</div>
@@ -1402,7 +1378,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col3:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile regulatory">
                 <h3>Audit Completeness</h3>
                 <p>{reg_audit_completeness}%</p>
                 <div class="tooltip">Percentage completeness of audits.</div>
@@ -1412,7 +1388,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col4, col5, col6 = st.columns(3)
     with col4:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile regulatory">
                 <h3>Policy Adherence Rate</h3>
                 <p>{reg_policy_adherence_rate}%</p>
                 <div class="tooltip">Percentage adherence to policies.</div>
@@ -1421,7 +1397,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col5:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile regulatory">
                 <h3>Risk Mitigation Effectiveness</h3>
                 <p>{reg_risk_mitigation_effectiveness}%</p>
                 <div class="tooltip">Effectiveness in mitigating risks.</div>
@@ -1430,7 +1406,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col6:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile regulatory">
                 <h3>Reporting Accuracy</h3>
                 <p>{reg_reporting_accuracy}%</p>
                 <div class="tooltip">Accuracy of regulatory reports.</div>
@@ -1440,7 +1416,7 @@ elif page == "📈 KPI Analytics 2" and df is not None:
     col7, col8, _ = st.columns(3)
     with col7:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile regulatory">
                 <h3>Stakeholder Compliance Training</h3>
                 <p>{reg_stakeholder_compliance_training}%</p>
                 <div class="tooltip">Percentage of stakeholders trained on compliance.</div>
@@ -1449,15 +1425,18 @@ elif page == "📈 KPI Analytics 2" and df is not None:
 
     with col8:
         st.markdown(f"""
-            <div class="metric-tile">
+            <div class="metric-tile regulatory">
                 <h3>Penalty Recovery Rate</h3>
                 <p>{reg_penalty_recovery_rate}%</p>
                 <div class="tooltip">Percentage of penalties recovered.</div>
             </div>
         """, unsafe_allow_html=True)
 
+    if active_df.empty:
+        st.info("No active auctions available for KPI calculation.")
+    st.write(f"**Active Auctions Analyzed:** {len(active_df)}")
 
-
+    st.markdown("---")
 
 
 
@@ -2513,6 +2492,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
