@@ -2166,8 +2166,16 @@ if page == "📊 Auction Insights":
     if df_ibbi.empty:
         st.info("No future IBBI EMD auctions found. You can still view cached risk insights.")
 
-    # Risk Insights Section 
+        # Risk Insights Section 
     st.subheader("Risk Summary Counts")
+
+    # ➡️ Add days_until_submission column
+    today_date = pd.Timestamp.now(tz=None).date()
+    if "days_until_submission" not in df_ibbi.columns:
+        df_ibbi["days_until_submission"] = df_ibbi["emd_submission_date"].apply(
+            lambda x: (pd.to_datetime(x, errors="coerce").date() - today_date).days
+            if pd.notna(x) and str(x) != "" else -999
+        )
 
     # Refresh button 
     if st.button("🔄 Refresh Risk Insights"):
@@ -2200,11 +2208,20 @@ if page == "📊 Auction Insights":
     # Reload the cache (initial + after refresh)
     df_cache_for_display = load_risk_cache()
     df_final_display = pd.merge(
-        df_ibbi[["auction_id"]], df_cache_for_display, on="auction_id", how="left"
+        df_ibbi[["auction_id", "days_until_submission"]],
+        df_cache_for_display,
+        on="auction_id",
+        how="left"
     )
     df_final_display["risk_summary_clean"] = (
         df_final_display["risk_summary"].fillna("Error").str.title()
     )
+
+    # ➡️ Add filter for days_until_submission
+    days_filter = st.number_input("🔎 Filter by Days Until Submission", min_value=0, step=1)
+
+    if days_filter > 0:
+        df_final_display = df_final_display[df_final_display["days_until_submission"] == days_filter]
 
     # Summary counts
     counts = df_final_display["risk_summary_clean"].value_counts().to_dict()
@@ -2229,7 +2246,8 @@ if page == "📊 Auction Insights":
     if clicked:
         st.markdown(f"### Auctions in: {clicked}")
         df_sel = df_final_display[df_final_display["risk_summary_clean"] == clicked].copy()
-        st.dataframe(df_sel[["auction_id", "risk_summary", "last_processed_at"]])
+        st.dataframe(df_sel[["auction_id", "risk_summary", "last_processed_at", "days_until_submission"]])
+
 
     st.markdown("---")
 
@@ -2492,6 +2510,7 @@ elif page == "📚 PBN FAQs":
     st.markdown("---")
     st.markdown("**Download FAQs**")
     st.button("Download as PDF (Coming Soon)", disabled=True)
+
 
 
 
